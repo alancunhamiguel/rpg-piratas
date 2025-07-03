@@ -1,5 +1,4 @@
-
-{ 
+{
   "dependencies": {
     "bcrypt": "^6.0.0",
     "connect-mongo": "^5.1.0",
@@ -8,5 +7,10 @@
     "express-session": "^1.18.1",
     "mongoose": "^8.16.1",
     "node.js": "^0.0.1-security"
+  },
+  "main": "src/index.js",  
+  "scripts": {
+    "start": "node src/index.js",  
+    "dev": "nodemon src/index.js"
   }
 }
