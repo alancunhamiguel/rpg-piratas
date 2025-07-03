@@ -8,9 +8,5 @@
     "express-session": "^1.18.1",
     "mongoose": "^8.16.1",
     "node.js": "^0.0.1-security"
-    
   }
-  {
-    "start": "nodemon src/index.js"
-}
 }
