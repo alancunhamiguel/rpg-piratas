@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RPG de Piratas - Home</title>
+    <!-- Inclui Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #1a202c; /* Fundo escuro */
+            color: #e2e8f0; /* Texto claro */
+        }
+        .container {
+            background-color: #2d3748; /* Fundo do container mais claro */
+            border-radius: 15px;
+            box-shadow: 0 10px 15px rgba(0, 0, 0, 0.5);
+        }
+        .btn-pirate {
+            background-color: #e53e3e; /* Vermelho pirata */
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: bold;
+            transition: background-color 0.3s ease;
+        }
+        .btn-pirate:hover {
+            background-color: #c53030;
+        }
+        .hp-bar-container {
+            width: 100%;
+            background-color: #4a5568;
+            border-radius: 5px;
+            overflow: hidden;
+            height: 20px;
+            margin-top: 5px;
+        }
+        .hp-bar {
+            height: 100%;
+            background-color: #48bb78; /* Verde para HP */
+            transition: width 0.5s ease-in-out;
+        }
+        .hp-bar.enemy {
+            background-color: #e53e3e; /* Vermelho para HP do inimigo */
+        }
+
+        /* Estilos para o Inventário */
+        .inventory-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr); /* 5 colunas */
+            gap: 10px;
+            padding: 10px;
+            border: 2px solid #4a5568;
+            border-radius: 10px;
+            background-color: #2d3748;
+        }
+        .inventory-slot {
+            width: 80px; /* Tamanho do quadrado */
+            height: 80px;
+            background-color: #4a5568;
+            border: 1px dashed #718096;
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8em;
+            color: #e2e8f0;
+            overflow: hidden; /* Garante que o conteúdo não vaze */
+        }
+        .inventory-item {
+            cursor: grab;
+            background-color: #63b3ed; /* Cor do item */
+            color: white;
+            padding: 5px;
+            border-radius: 3px;
+            text-align: center;
+            width: 90%;
+            height: 90%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+        }
+        .discard-area {
+            background-color: #c53030; /* Vermelho para a lixeira */
+            border: 2px dashed #e53e3e;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100px;
+            color: white;
+            font-weight: bold;
+            transition: background-color 0.3s ease;
+        }
+        .discard-area.drag-over {
+            background-color: #a02020; /* Cor quando arrasta sobre */
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4">
+    <div id="home-section" class="container w-full max-w-2xl p-8 text-center <%= battleState || inventoryState ? 'hidden' : '' %>">
+        <h1 class="text-4xl font-bold mb-6 text-yellow-400">Bem-vindo, Capitão <%= userName %>!</h1>
+        
+        <div class="flex flex-col items-center mb-8">
+            <img src="https://placehold.co/200x200/3182ce/ffffff?text=Pirata" alt="Seu Pirata" class="rounded-full border-4 border-yellow-500 mb-4 shadow-lg">
+            <p class="text-2xl font-semibold text-green-400">Nível: <span class="text-white" id="user-level"><%= userLevel %></span></p>
+            <!-- REMOVIDO: Inventário não aparecerá mais aqui -->
+        </div>
+
+        <p class="text-lg mb-8">Sua aventura pelos sete mares começa agora! Prepare-se para desafios, tesouros e glória!</p>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <button class="btn-pirate">Explorar Ilha</button>
+            <button id="start-battle-btn" class="btn-pirate">Batalha Naval</button>
+            <button class="btn-pirate">Gerenciar Tripulação</button>
+            <button id="show-inventory-btn" class="btn-pirate">Inventário</button>
+        </div>
+
+        <div class="mt-8">
+            <a href="/logout" class="text-blue-400 hover:underline">Sair (Logout)</a>
+        </div>
+    </div>
+
+    <!-- Seção de Batalha (inicialmente oculta) -->
+    <div id="battle-section" class="container w-full max-w-2xl p-8 text-center <%= battleState ? '' : 'hidden' %>">
+        <h2 class="text-3xl font-bold mb-4 text-red-400">Batalha!</h2>
+
+        <!-- Informações do Inimigo -->
+        <div class="mb-6">
+            <h3 class="text-2xl font-semibold text-gray-300" id="enemy-name"></h3>
+            <p class="text-lg text-gray-400">Nível: <span id="enemy-level"></span></p>
+            <div class="hp-bar-container">
+                <div id="enemy-hp-bar" class="hp-bar enemy" style="width: 100%;"></div>
+            </div>
+            <p class="text-lg text-gray-400">HP: <span id="enemy-hp"></span></p>
+            <img src="https://placehold.co/150x150/8B4513/ffffff?text=Orc" alt="Orc Pirata" class="mx-auto my-4 rounded-lg">
+        </div>
+
+        <!-- Informações do Jogador -->
+        <div class="mb-6">
+            <h3 class="text-2xl font-semibold text-blue-300">Você</h3>
+            <div class="hp-bar-container">
+                <div id="player-hp-bar" class="hp-bar" style="width: 100%;"></div>
+            </div>
+            <p class="text-lg text-gray-400">HP: <span id="player-hp"></span></p>
+        </div>
+
+        <!-- Botão de Ataque e Log de Batalha -->
+        <div class="mb-6">
+            <button id="attack-btn" class="btn-pirate w-full mb-4">Atacar!</button>
+            <div id="battle-log" class="bg-gray-700 p-4 rounded-lg text-left h-40 overflow-y-auto">
+                <!-- Mensagens da batalha aparecerão aqui -->
+            </div>
+        </div>
+
+        <!-- Mensagens de Fim de Batalha -->
+        <div class="hidden" id="battle-result">
+            <h3 class="text-2xl font-bold mb-4" id="result-message"></h3>
+            <button id="return-home-from-battle-btn" class="btn-pirate w-full">Voltar para Casa</button>
+        </div>
+    </div>
+
+    <!-- Seção de Inventário (inicialmente oculta) -->
+    <div id="inventory-section" class="container w-full max-w-2xl p-8 text-center <%= inventoryState ? '' : 'hidden' %>">
+        <h2 class="text-3xl font-bold mb-6 text-yellow-400">Seu Inventário</h2>
+        
+        <div id="inventory-grid" class="inventory-grid mb-6">
+            <!-- Slots do inventário serão preenchidos aqui -->
+        </div>
+
+        <div id="discard-area" class="discard-area">
+            Arrastar itens aqui para descartar
+        </div>
+
+        <div class="mt-8">
+            <button id="return-home-from-inventory-btn" class="btn-pirate w-full">Voltar para Casa</button>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log("DOM Content Loaded. Initializing UI.");
+
+            const homeSection = document.getElementById('home-section');
+            const battleSection = document.getElementById('battle-section');
+            const inventorySection = document.getElementById('inventory-section');
+            
+            const startBattleBtn = document.getElementById('start-battle-btn');
+            const showInventoryBtn = document.getElementById('show-inventory-btn');
+            const attackBtn = document.getElementById('attack-btn');
+            const returnHomeFromBattleBtn = document.getElementById('return-home-from-battle-btn');
+            const returnHomeFromInventoryBtn = document.getElementById('return-home-from-inventory-btn');
+
+            const enemyNameEl = document.getElementById('enemy-name');
+            const enemyLevelEl = document.getElementById('enemy-level');
+            const enemyHpBarEl = document.getElementById('enemy-hp-bar');
+            const enemyHpEl = document.getElementById('enemy-hp');
+            const playerHpBarEl = document.getElementById('player-hp-bar');
+            const playerHpEl = document.getElementById('player-hp');
+            const battleLogEl = document.getElementById('battle-log');
+            const battleResultEl = document.getElementById('battle-result');
+            const resultMessageEl = document.getElementById('result-message');
+            const userLevelEl = document.getElementById('user-level');
+            
+
+            const inventoryGridEl = document.getElementById('inventory-grid');
+            const discardAreaEl = document.getElementById('discard-area');
+
+            // CORREÇÃO: Garante que currentUserInventory seja sempre um array parseando corretamente.
+            let currentUserInventory;
+            try {
+                // Tenta parsear userInventory, se for nulo ou indefinido, usa um array vazio.
+                currentUserInventory = JSON.parse('<%- JSON.stringify(userInventory || []) %>');
+                // Verifica se o resultado é realmente um array. Se não for, força para um array vazio.
+                if (!Array.isArray(currentUserInventory)) {
+                    console.warn("currentUserInventory was not an array after parsing, resetting to empty array.");
+                    currentUserInventory = [];
+                }
+            } catch (e) {
+                // Em caso de erro no parse, define como array vazio e loga o erro.
+                console.error("Error parsing userInventory:", e);
+                currentUserInventory = [];
+            }
+            console.log("Initial currentUserInventory after robust parsing:", currentUserInventory);
+            
+            const INVENTORY_LIMIT = 20;
+
+            // Função para atualizar a interface da batalha E gerenciar a visibilidade das seções
+            function updateUI(battleState, inventoryState) {
+                console.log("updateUI called. Battle State:", battleState, "Inventory State:", inventoryState);
+                
+                // Esconde todas as seções por padrão
+                homeSection.classList.add('hidden');
+                battleSection.classList.add('hidden');
+                inventorySection.classList.add('hidden');
+
+                if (battleState && battleState.status === "active") {
+                    console.log("Showing Battle Section.");
+                    battleSection.classList.remove('hidden');
+                    // Atualiza os elementos da batalha
+                    enemyNameEl.textContent = battleState.enemyName;
+                    enemyLevelEl.textContent = battleState.enemyLevel;
+                    enemyHpEl.textContent = battleState.enemyHP;
+                    enemyHpBarEl.style.width = `${Math.max(0, (battleState.enemyHP / 50) * 100)}%`; 
+
+                    playerHpEl.textContent = battleState.playerHP;
+                    playerHpBarEl.style.width = `${Math.max(0, (battleState.playerHP / 100) * 100)}%`; 
+
+                    battleLogEl.innerHTML = '';
+                    battleState.battleLog.forEach(log => {
+                        const p = document.createElement('p');
+                        p.textContent = log;
+                        battleLogEl.appendChild(p);
+                    });
+                    battleLogEl.scrollTop = battleLogEl.scrollHeight;
+
+                    if (battleState.status === "win") {
+                        resultMessageEl.textContent = "VITÓRIA! Você derrotou o Orc!";
+                        resultMessageEl.classList.remove('text-red-500');
+                        resultMessageEl.classList.add('text-green-500');
+                        battleResultEl.classList.remove('hidden');
+                        attackBtn.classList.add('hidden');
+                    } else if (battleState.status === "lose") {
+                        resultMessageEl.textContent = "DERROTA! Você foi nocauteado!";
+                        resultMessageEl.classList.remove('text-green-500');
+                        resultMessageEl.classList.add('text-red-500');
+                        battleResultEl.classList.remove('hidden');
+                        attackBtn.classList.add('hidden');
+                    } else {
+                        battleResultEl.classList.add('hidden');
+                        attackBtn.classList.remove('hidden');
+                    }
+                } else if (inventoryState) { // Se o inventário foi aberto via rota
+                    console.log("Showing Inventory Section. Calling updateInventoryUI.");
+                    inventorySection.classList.remove('hidden');
+                    updateInventoryUI(); // Garante que o inventário esteja atualizado
+                } else { // Padrão: mostrar a home
+                    console.log("Showing Home Section.");
+                    homeSection.classList.remove('hidden');
+                }
+            }
+
+            function updateInventoryUI() {
+                console.log("updateInventoryUI called with currentUserInventory:", currentUserInventory);
+                inventoryGridEl.innerHTML = ''; // Limpa a grade existente
+
+                // Preenche os slots com itens existentes
+                currentUserInventory.forEach((item, index) => {
+                    const slot = document.createElement('div');
+                    slot.classList.add('inventory-slot');
+
+                    const itemDiv = document.createElement('div');
+                    itemDiv.classList.add('inventory-item');
+                    itemDiv.textContent = item;
+                    itemDiv.setAttribute('draggable', 'true');
+                    itemDiv.dataset.index = index; // Armazena o índice original do item
+                    slot.appendChild(itemDiv);
+                    inventoryGridEl.appendChild(slot);
+                });
+
+                // Preenche os slots vazios até o limite
+                for (let i = currentUserInventory.length; i < INVENTORY_LIMIT; i++) {
+                    const slot = document.createElement('div');
+                    slot.classList.add('inventory-slot');
+                    inventoryGridEl.appendChild(slot);
+                }
+            }
+
+            async function saveInventoryToBackend(updatedInventory) {
+                try {
+                    const response = await fetch('/inventory/update', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ inventory: updatedInventory })
+                    });
+                    const data = await response.json();
+                    if (data.success) {
+                        console.log("Inventário salvo com sucesso no backend!");
+                        currentUserInventory = data.inventory;
+                        updateInventoryUI();
+                    } else {
+                        console.error("Erro ao salvar inventário no backend:", data.message);
+                    }
+                } catch (error) {
+                    console.error("Erro na requisição para salvar inventário:", error);
+                }
+            }
+
+            // Inicializa a UI com os estados vindos do servidor
+            const initialBattleState = JSON.parse('<%- JSON.stringify(battleState || null) %>'); 
+            const initialInventoryState = JSON.parse('<%- JSON.stringify(inventoryState || null) %>');
+            
+            updateUI(initialBattleState, initialInventoryState); // Chama a função principal de atualização da UI
+
+
+            startBattleBtn.addEventListener('click', async () => {
+                console.log("Botão Batalha Naval clicado. Redirecionando para /battle/start");
+                window.location.href = '/battle/start'; 
+            });
+
+            showInventoryBtn.addEventListener('click', () => {
+                console.log("Botão Inventário clicado. Redirecionando para /inventory/show");
+                window.location.href = '/inventory/show';
+            });
+
+            attackBtn.addEventListener('click', async () => {
+                console.log("Botão Atacar clicado.");
+                const response = await fetch('/battle/attack', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                const data = await response.json();
+                // Passa ambos os estados para updateUI
+                updateUI(data.battleState, initialInventoryState); // inventoryState não muda durante a batalha
+                
+                if (data.battleState.status === "win") {
+                    currentUserInventory = data.battleState.userInventory;
+                    userLevelEl.textContent = data.userLevel;
+                    updateInventoryUI();
+                    
+                    setTimeout(() => {
+                        console.log("Recarregando página após vitória para atualizar dados.");
+                        window.location.reload(); 
+                    }, 1500); 
+                }
+            });
+
+            returnHomeFromBattleBtn.addEventListener('click', async () => {
+                console.log("Botão Voltar para Casa (Batalha) clicado. Resetando batalha e redirecionando.");
+                const response = await fetch('/battle/reset', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                const data = await response.json();
+                if (data.message === "Batalha resetada.") {
+                    window.location.href = '/home'; 
+                }
+            });
+
+            returnHomeFromInventoryBtn.addEventListener('click', () => {
+                console.log("Botão Voltar para Casa (Inventário) clicado. Redirecionando para /inventory/hide.");
+                window.location.href = '/inventory/hide';
+            });
+
+            let draggedItem = null;
+
+            inventoryGridEl.addEventListener('dragstart', (e) => {
+                if (e.target.classList.contains('inventory-item')) {
+                    draggedItem = e.target;
+                    e.dataTransfer.setData('text/plain', e.target.textContent);
+                    e.dataTransfer.effectAllowed = 'move';
+                    console.log("Item arrastado:", e.target.textContent);
+                }
+            });
+
+            discardAreaEl.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                discardAreaEl.classList.add('drag-over');
+            });
+
+            discardAreaEl.addEventListener('dragleave', () => {
+                discardAreaEl.classList.remove('drag-over');
+            });
+
+            discardAreaEl.addEventListener('drop', async (e) => {
+                e.preventDefault();
+                discardAreaEl.classList.remove('drag-over');
+
+                if (draggedItem) {
+                    const itemText = draggedItem.textContent;
+                    const itemIndex = parseInt(draggedItem.dataset.index);
+
+                    // Remove o item do array local
+                    currentUserInventory.splice(itemIndex, 1); 
+                    console.log("Item descartado:", itemText, "Novo inventário local:", currentUserInventory);
+
+                    // Salva o inventário atualizado no backend
+                    await saveInventoryToBackend(currentUserInventory);
+
+                    // Re-renderiza o inventário no frontend
+                    updateInventoryUI();
+
+                    draggedItem = null;
+                }
+            });
+        });
+    </script>
+</body>
+</html>
