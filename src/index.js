@@ -92,12 +92,12 @@ app.post("/signup", async (req, res) => {
     }
 
     // Checar se já existe o usuário na database
-    try { 
+    try {
         const existingUser = await collection.findOne ({name: data.name});
         if(existingUser) {
-            res.send("Tente outro Usuário. Esse já existe :(");
+            // Alterado: Enviar JSON com status de erro e mensagem
+            return res.status(409).json({ success: false, message: "Tente outro Usuário. Esse já existe :(" });
         } else {
-            // Hash na senha
             const saltRounds = 10;
             const hashedPassword = await bcrypt.hash(data.password, saltRounds);
 
@@ -105,11 +105,13 @@ app.post("/signup", async (req, res) => {
 
             const userdata = await collection.insertMany(data);
             console.log(userdata);
-            res.send("Usuário cadastrado com sucesso!");
+            // Alterado: Enviar JSON com status de sucesso e mensagem
+            return res.status(200).json({ success: true, message: "Usuário cadastrado com sucesso!" });
         }
     } catch (error) {
-        console.error("Erro ao verificar ou cadastrar usuário:", error); 
-        res.status(500).send("Erro ao cadastrar usuário. Tente novamente."); 
+        console.error("Erro ao verificar ou cadastrar usuário:", error);
+        // Alterado: Enviar JSON com status de erro e mensagem
+        return res.status(500).json({ success: false, message: "Erro ao cadastrar usuário. Tente novamente." });
     }
 }); 
 

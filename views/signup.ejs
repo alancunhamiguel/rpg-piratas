@@ -105,17 +105,52 @@
 
     <div class="form-container">
         <h2>CADASTRO RPG GAME </h2>
-        <form action="/signup" method="post">
+        <form id="signupForm"> 
             <div class="form-group">
                 <label for="name">Nome de Usuário:</label>
                 <input type="text" id="name" name="username" placeholder="Digite seu nome de usuário" required autocomplete="off">
             </div>
             <div class="form-group">
-                <label for="password">Senha:</label> <input type="password" name="password" id="password" placeholder="Digite sua senha" required>
+                <label for="password">Senha:</label> 
+                <input type="password" name="password" id="password" placeholder="Digite sua senha" required>
             </div>
             <button type="submit" class="submit-btn">Cadastrar</button>
         </form>
+        <div class="signup-link">
+            <a href="/">Já tem uma conta? Entrar</a>
+        </div>
     </div>
 
+    <script>
+        document.getElementById('signupForm').addEventListener('submit', async function(event) {
+            event.preventDefault(); // Impede o envio padrão do formulário (que recarregaria a página)
+
+            const username = this.elements.username.value;
+            const password = this.elements.password.value;
+
+            try {
+                const response = await fetch('/signup', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+
+                const data = await response.json(); // Pega a resposta JSON do servidor
+
+                if (response.ok) { // Verifica se o status HTTP está na faixa 2xx (sucesso)
+                    alert(data.message); // Exibe o popup com a mensagem de sucesso
+                    window.location.href = '/'; // Redireciona para a página de login
+                } else {
+                    // Se o status não for 2xx, o servidor enviou um erro (ex: 409, 500)
+                    alert(data.message || 'Ocorreu um erro ao cadastrar. Tente novamente.'); // Exibe o popup com a mensagem de erro
+                }
+            } catch (error) {
+                console.error('Erro ao processar cadastro:', error);
+                alert('Ocorreu um erro inesperado. Verifique sua conexão e tente novamente.'); // Mensagem de erro genérica para falhas de rede
+            }
+        });
+    </script>
 </body>
 </html>
