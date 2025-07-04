@@ -2,24 +2,25 @@ const express = require('express');
 const path = require("path");
 const bcrypt = require("bcrypt");
 const collection = require("./config"); // Certifique-se de que 'collection' está configurado corretamente para o seu modelo MongoDB
-const http = require('http'); // <--- NOVO: Importar módulo http do Node.js
-const { Server } = require("socket.io"); // <--- NOVO: Importar Server do socket.io
+const http = require('http'); 
+const { Server } = require("socket.io"); 
 
 // Importar express-session e connect-mongo
 const session = require('express-session');
 const MongoStore = require('connect-mongo');
-const mongoose = require('mongoose'); // <--- Adicionado: Importar Mongoose
+const mongoose = require('mongoose'); 
+
+// NOVO: Importar o modelo de mensagem de chat
+const ChatMessage = require('./models/ChatMessage'); 
 
 const app = express();
 
-// --- Conexão com o Banco de Dados (INÍCIO DA MUDANÇA PRINCIPAL) ---
-// Obtém a URI do MongoDB da variável de ambiente
+// --- Conexão com o Banco de Dados ---
 const MONGODB_URI = process.env.MONGODB_URI;
 
-// Garante que a URI está definida
 if (!MONGODB_URI) {
     console.error('ERRO: A variável de ambiente MONGODB_URI não está definida.');
-    process.exit(1); // Encerra o processo se a URI não for encontrada
+    process.exit(1); 
 }
 
 mongoose.connect(MONGODB_URI)
@@ -28,13 +29,13 @@ mongoose.connect(MONGODB_URI)
   })
   .catch(err => {
     console.error('Database Cannot Be Connected!', err);
-    process.exit(1); // Encerra o processo se a conexão com o BD falhar
+    process.exit(1); 
   });
-// --- Conexão com o Banco de Dados (FIM DA MUDANÇA PRINCIPAL) ---
+// --- Fim da Conexão com o Banco de Dados ---
 
 // Cria o servidor HTTP do Node.js usando o app Express
-const server = http.createServer(app); // <--- NOVO: Seu app Express agora é passado para o servidor HTTP
-const io = new Server(server); // <--- NOVO: Cria o servidor Socket.IO e o anexa ao servidor HTTP
+const server = http.createServer(app); 
+const io = new Server(server); 
 
 // Converter data em json 
 app.use(express.json());
@@ -42,11 +43,11 @@ app.use(express.urlencoded({extended: false}));
 
 // Configurar express-session
 app.use(session({
-    secret: process.env.SESSION_SECRET || 'sd@sds#fgewrwe3223321Da', // <--- Ajustado: Usar variável de ambiente para o segredo da sessão
+    secret: process.env.SESSION_SECRET || 'sd@sds#fgewrwe3223321Da', 
     resave: false,
     saveUninitialized: false,
     store: MongoStore.create({
-        mongoUrl: MONGODB_URI, // <--- Ajustado: Usar a variável MONGODB_URI aqui também
+        mongoUrl: MONGODB_URI, 
         ttl: 14 * 24 * 60 * 60,
         autoRemove: 'interval',
         autoRemoveInterval: 10
@@ -91,7 +92,7 @@ app.post("/signup", async (req, res) => {
     }
 
     // Checar se já existe o usuário na database
-    try { // <--- Adicionado try/catch para a busca também
+    try { 
         const existingUser = await collection.findOne ({name: data.name});
         if(existingUser) {
             res.send("Tente outro Usuário. Esse já existe :(");
@@ -107,8 +108,8 @@ app.post("/signup", async (req, res) => {
             res.send("Usuário cadastrado com sucesso!");
         }
     } catch (error) {
-        console.error("Erro ao verificar ou cadastrar usuário:", error); // <--- Mensagem de erro mais genérica
-        res.status(500).send("Erro ao cadastrar usuário. Tente novamente."); // <--- Retorna status 500
+        console.error("Erro ao verificar ou cadastrar usuário:", error); 
+        res.status(500).send("Erro ao cadastrar usuário. Tente novamente."); 
     }
 }); 
 
@@ -138,7 +139,7 @@ app.post("/login", async (req, res) => {
         }
     } catch(error) {
         console.error("Erro durante o login:", error);
-        res.status(500).send("Usuário e senha não conferem ou ocorreu um erro interno."); // <--- Retorna status 500
+        res.status(500).send("Usuário e senha não conferem ou ocorreu um erro interno."); 
     }
 });
 
@@ -280,26 +281,69 @@ app.get("/logout", (req, res) => {
     });
 });
 
-// --- Lógica do Socket.IO (NOVO BLOCO) ---
-io.on('connection', (socket) => {
-  console.log('Um usuário conectado:', socket.id);
+// --- Lógica do Socket.IO (MODIFICADA PARA SALVAR E CARREGAR MENSAGENS) ---
+io.on('connection', async (socket) => { // <--- Tornar a função async
+    console.log('Um usuário conectado ao chat:', socket.id);
 
-  // Escuta por mensagens de chat de um cliente
-  socket.on('chat message', (msg) => {
-    console.log('Mensagem recebida:', msg);
-    // Emite a mensagem para TODOS os clientes conectados
-    io.emit('chat message', msg); // Isso envia a mensagem de volta para todos, incluindo quem a enviou
-  });
+    // Carregar histórico de mensagens ao conectar
+    try {
+        // Busca as últimas 50 mensagens, ordenadas da mais antiga para a mais recente
+        const messages = await ChatMessage.find()
+                                          .sort({ timestamp: 1 }) // Ordem ascendente
+                                          .limit(50); // Limita a 50 mensagens
+        
+        messages.forEach(chatMsg => {
+            // Emite cada mensagem do histórico apenas para o socket que acabou de conectar
+            socket.emit('chat message', `${chatMsg.sender}: ${chatMsg.message}`);
+        });
+        console.log(`Histórico de ${messages.length} mensagens carregado para ${socket.id}`);
 
-  // Quando um cliente se desconecta
-  socket.on('disconnect', () => {
-    console.log('Um usuário desconectado:', socket.id);
-  });
+    } catch (error) {
+        console.error("Erro ao carregar histórico de mensagens:", error);
+    }
+
+    // Escuta por mensagens de chat de um cliente
+    socket.on('chat message', async (fullMsg) => { // <--- Tornar a função async
+        console.log('Mensagem recebida do cliente:', fullMsg);
+
+        // Extrai o nome do remetente e o conteúdo da mensagem
+        // Assumimos o formato "Nome do Usuário: Mensagem" que vem do frontend
+        const parts = fullMsg.split(': ');
+        let sender = 'Desconhecido';
+        let messageContent = fullMsg; // fallback, caso não consiga parsear
+
+        if (parts.length > 1) {
+            sender = parts[0];
+            messageContent = parts.slice(1).join(': '); // Junta o resto de volta caso a mensagem tenha múltiplos ':'
+        }
+
+        try {
+            // Salva a mensagem no banco de dados
+            const newChatMessage = new ChatMessage({
+                sender: sender,
+                message: messageContent
+            });
+            await newChatMessage.save();
+            console.log('Mensagem salva no banco de dados:', newChatMessage);
+
+            // Emite a mensagem (o fullMsg original) para TODOS os clientes conectados
+            io.emit('chat message', fullMsg); 
+
+        } catch (error) {
+            console.error("Erro ao salvar mensagem no banco de dados:", error);
+            // Opcional: emitir um erro de volta para o cliente que tentou enviar a mensagem
+            socket.emit('chat error', 'Erro ao enviar mensagem.');
+        }
+    });
+
+    // Quando um cliente se desconecta
+    socket.on('disconnect', () => {
+        console.log('Um usuário desconectado do chat:', socket.id);
+    });
 });
 // --- Fim da Lógica do Socket.IO ---
 
-// A porta agora é passada para o servidor HTTP, não diretamente para o app Express
 const port = process.env.PORT || 5000;
-server.listen(port, () => { // <--- Ajustado: Agora o 'server' ouve na porta
+server.listen(port, () => { 
     console.log(`Server running on port: ${port}`);
 });
