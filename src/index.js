@@ -2,6 +2,8 @@ const express = require('express');
 const path = require("path");
 const bcrypt = require("bcrypt");
 const collection = require("./config"); // Certifique-se de que 'collection' está configurado corretamente para o seu modelo MongoDB
+const http = require('http'); // <--- NOVO: Importar módulo http do Node.js
+const { Server } = require("socket.io"); // <--- NOVO: Importar Server do socket.io
 
 // Importar express-session e connect-mongo
 const session = require('express-session');
@@ -30,6 +32,9 @@ mongoose.connect(MONGODB_URI)
   });
 // --- Conexão com o Banco de Dados (FIM DA MUDANÇA PRINCIPAL) ---
 
+// Cria o servidor HTTP do Node.js usando o app Express
+const server = http.createServer(app); // <--- NOVO: Seu app Express agora é passado para o servidor HTTP
+const io = new Server(server); // <--- NOVO: Cria o servidor Socket.IO e o anexa ao servidor HTTP
 
 // Converter data em json 
 app.use(express.json());
@@ -275,7 +280,26 @@ app.get("/logout", (req, res) => {
     });
 });
 
-const port = process.env.PORT || 5000; // <--- Ajustado: Usar a porta do ambiente (Render define PORT)
-app.listen(port, () => {
+// --- Lógica do Socket.IO (NOVO BLOCO) ---
+io.on('connection', (socket) => {
+  console.log('Um usuário conectado:', socket.id);
+
+  // Escuta por mensagens de chat de um cliente
+  socket.on('chat message', (msg) => {
+    console.log('Mensagem recebida:', msg);
+    // Emite a mensagem para TODOS os clientes conectados
+    io.emit('chat message', msg); // Isso envia a mensagem de volta para todos, incluindo quem a enviou
+  });
+
+  // Quando um cliente se desconecta
+  socket.on('disconnect', () => {
+    console.log('Um usuário desconectado:', socket.id);
+  });
+});
+// --- Fim da Lógica do Socket.IO ---
+
+// A porta agora é passada para o servidor HTTP, não diretamente para o app Express
+const port = process.env.PORT || 5000;
+server.listen(port, () => { // <--- Ajustado: Agora o 'server' ouve na porta
     console.log(`Server running on port: ${port}`);
-})
+});

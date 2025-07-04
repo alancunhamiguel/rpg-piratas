@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RPG de Piratas - Home</title>
-    <!-- Inclui Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
     <style>
@@ -101,88 +100,149 @@
         .discard-area.drag-over {
             background-color: #a02020; /* Cor quando arrasta sobre */
         }
+
+        /* --- Estilos do Chat (Novos ou Ajustados) --- */
+        #chat-section {
+            display: flex;
+            flex-direction: column;
+            background-color: #2d3748; /* Fundo do container do chat */
+            border-radius: 15px;
+            box-shadow: 0 10px 15px rgba(0, 0, 0, 0.5);
+            padding: 1rem;
+            margin-top: 20px; /* Espaço entre o conteúdo principal e o chat */
+            max-height: 300px; /* Altura máxima para o chat */
+            overflow: hidden; /* Garante que a rolagem funcione no contêiner interno */
+        }
+        #messages {
+            flex-grow: 1; /* Faz a lista de mensagens ocupar o espaço disponível */
+            overflow-y: auto; /* Adiciona a rolagem vertical */
+            padding: 0.5rem;
+            list-style-type: none;
+            margin: 0;
+            background-color: #1a202c; /* Fundo das mensagens */
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            color: #e2e8f0;
+        }
+        #messages li {
+            padding: 0.25rem 0;
+            border-bottom: 1px solid #4a5568; /* Linha divisória para mensagens */
+        }
+        #messages li:last-child {
+            border-bottom: none;
+        }
+        #chat-form {
+            display: flex;
+            gap: 0.5rem;
+        }
+        #chat-input {
+            flex-grow: 1;
+            padding: 0.75rem;
+            border: 1px solid #4a5568;
+            border-radius: 8px;
+            background-color: #1a202c;
+            color: #e2e8f0;
+        }
+        #chat-input::placeholder {
+            color: #a0aec0;
+        }
+        #chat-button {
+            background-color: #4299e1; /* Azul para o botão de chat */
+            color: white;
+            padding: 0.75rem 1.25rem;
+            border-radius: 8px;
+            font-weight: bold;
+            transition: background-color 0.3s ease;
+        }
+        #chat-button:hover {
+            background-color: #3182ce;
+        }
     </style>
 </head>
-<body class="flex items-center justify-center min-h-screen p-4">
-    <div id="home-section" class="container w-full max-w-2xl p-8 text-center <%= battleState || inventoryState ? 'hidden' : '' %>">
-        <h1 class="text-4xl font-bold mb-6 text-yellow-400">Bem-vindo, Capitão <%= userName %>!</h1>
-        
-        <div class="flex flex-col items-center mb-8">
-            <img src="https://placehold.co/200x200/3182ce/ffffff?text=Pirata" alt="Seu Pirata" class="rounded-full border-4 border-yellow-500 mb-4 shadow-lg">
-            <p class="text-2xl font-semibold text-green-400">Nível: <span class="text-white" id="user-level"><%= userLevel %></span></p>
-            <!-- REMOVIDO: Inventário não aparecerá mais aqui -->
-        </div>
-
-        <p class="text-lg mb-8">Sua aventura pelos sete mares começa agora! Prepare-se para desafios, tesouros e glória!</p>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <button class="btn-pirate">Explorar Ilha</button>
-            <button id="start-battle-btn" class="btn-pirate">Batalha Naval</button>
-            <button class="btn-pirate">Gerenciar Tripulação</button>
-            <button id="show-inventory-btn" class="btn-pirate">Inventário</button>
-        </div>
-
-        <div class="mt-8">
-            <a href="/logout" class="text-blue-400 hover:underline">Sair (Logout)</a>
-        </div>
-    </div>
-
-    <!-- Seção de Batalha (inicialmente oculta) -->
-    <div id="battle-section" class="container w-full max-w-2xl p-8 text-center <%= battleState ? '' : 'hidden' %>">
-        <h2 class="text-3xl font-bold mb-4 text-red-400">Batalha!</h2>
-
-        <!-- Informações do Inimigo -->
-        <div class="mb-6">
-            <h3 class="text-2xl font-semibold text-gray-300" id="enemy-name"></h3>
-            <p class="text-lg text-gray-400">Nível: <span id="enemy-level"></span></p>
-            <div class="hp-bar-container">
-                <div id="enemy-hp-bar" class="hp-bar enemy" style="width: 100%;"></div>
+<body class="flex flex-col items-center justify-center min-h-screen p-4">
+    <div id="main-content-wrapper" class="flex flex-col w-full max-w-2xl">
+        <div id="home-section" class="container w-full p-8 text-center <%= battleState || inventoryState ? 'hidden' : '' %>">
+            <h1 class="text-4xl font-bold mb-6 text-yellow-400">Bem-vindo, Capitão <%= userName %>!</h1>
+            
+            <div class="flex flex-col items-center mb-8">
+                <img src="https://placehold.co/200x200/3182ce/ffffff?text=Pirata" alt="Seu Pirata" class="rounded-full border-4 border-yellow-500 mb-4 shadow-lg">
+                <p class="text-2xl font-semibold text-green-400">Nível: <span class="text-white" id="user-level"><%= userLevel %></span></p>
             </div>
-            <p class="text-lg text-gray-400">HP: <span id="enemy-hp"></span></p>
-            <img src="https://placehold.co/150x150/8B4513/ffffff?text=Orc" alt="Orc Pirata" class="mx-auto my-4 rounded-lg">
-        </div>
 
-        <!-- Informações do Jogador -->
-        <div class="mb-6">
-            <h3 class="text-2xl font-semibold text-blue-300">Você</h3>
-            <div class="hp-bar-container">
-                <div id="player-hp-bar" class="hp-bar" style="width: 100%;"></div>
+            <p class="text-lg mb-8">Sua aventura pelos sete mares começa agora! Prepare-se para desafios, tesouros e glória!</p>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <button class="btn-pirate">Explorar Ilha</button>
+                <button id="start-battle-btn" class="btn-pirate">Batalha Naval</button>
+                <button class="btn-pirate">Gerenciar Tripulação</button>
+                <button id="show-inventory-btn" class="btn-pirate">Inventário</button>
             </div>
-            <p class="text-lg text-gray-400">HP: <span id="player-hp"></span></p>
-        </div>
 
-        <!-- Botão de Ataque e Log de Batalha -->
-        <div class="mb-6">
-            <button id="attack-btn" class="btn-pirate w-full mb-4">Atacar!</button>
-            <div id="battle-log" class="bg-gray-700 p-4 rounded-lg text-left h-40 overflow-y-auto">
-                <!-- Mensagens da batalha aparecerão aqui -->
+            <div class="mt-8">
+                <a href="/logout" class="text-blue-400 hover:underline">Sair (Logout)</a>
             </div>
         </div>
 
-        <!-- Mensagens de Fim de Batalha -->
-        <div class="hidden" id="battle-result">
-            <h3 class="text-2xl font-bold mb-4" id="result-message"></h3>
-            <button id="return-home-from-battle-btn" class="btn-pirate w-full">Voltar para Casa</button>
+        <div id="battle-section" class="container w-full p-8 text-center <%= battleState ? '' : 'hidden' %>">
+            <h2 class="text-3xl font-bold mb-4 text-red-400">Batalha!</h2>
+
+            <div class="mb-6">
+                <h3 class="text-2xl font-semibold text-gray-300" id="enemy-name"></h3>
+                <p class="text-lg text-gray-400">Nível: <span id="enemy-level"></span></p>
+                <div class="hp-bar-container">
+                    <div id="enemy-hp-bar" class="hp-bar enemy" style="width: 100%;"></div>
+                </div>
+                <p class="text-lg text-gray-400">HP: <span id="enemy-hp"></span></p>
+                <img src="https://placehold.co/150x150/8B4513/ffffff?text=Orc" alt="Orc Pirata" class="mx-auto my-4 rounded-lg">
+            </div>
+
+            <div class="mb-6">
+                <h3 class="text-2xl font-semibold text-blue-300">Você</h3>
+                <div class="hp-bar-container">
+                    <div id="player-hp-bar" class="hp-bar" style="width: 100%;"></div>
+                </div>
+                <p class="text-lg text-gray-400">HP: <span id="player-hp"></span></p>
+            </div>
+
+            <div class="mb-6">
+                <button id="attack-btn" class="btn-pirate w-full mb-4">Atacar!</button>
+                <div id="battle-log" class="bg-gray-700 p-4 rounded-lg text-left h-40 overflow-y-auto">
+                    </div>
+            </div>
+
+            <div class="hidden" id="battle-result">
+                <h3 class="text-2xl font-bold mb-4" id="result-message"></h3>
+                <button id="return-home-from-battle-btn" class="btn-pirate w-full">Voltar para Casa</button>
+            </div>
+        </div>
+
+        <div id="inventory-section" class="container w-full p-8 text-center <%= inventoryState ? '' : 'hidden' %>">
+            <h2 class="text-3xl font-bold mb-6 text-yellow-400">Seu Inventário</h2>
+            
+            <div id="inventory-grid" class="inventory-grid mb-6">
+                </div>
+
+            <div id="discard-area" class="discard-area">
+                Arrastar itens aqui para descartar
+            </div>
+
+            <div class="mt-8">
+                <button id="return-home-from-inventory-btn" class="btn-pirate w-full">Voltar para Casa</button>
+            </div>
+        </div>
+
+        <div id="chat-section" class="w-full max-w-2xl">
+            <h2 class="text-2xl font-bold mb-4 text-blue-300">Chat Global</h2>
+            <ul id="messages" class="h-48 overflow-y-auto bg-gray-700 p-4 rounded-lg mb-4">
+                </ul>
+            <form id="chat-form" class="flex gap-2">
+                <input id="chat-input" type="text" autocomplete="off" placeholder="Digite sua mensagem..." class="flex-grow p-2 rounded-lg bg-gray-800 border border-gray-600 text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <button type="submit" id="chat-button" class="btn-pirate bg-blue-600 hover:bg-blue-700">Enviar</button>
+            </form>
         </div>
     </div>
 
-    <!-- Seção de Inventário (inicialmente oculta) -->
-    <div id="inventory-section" class="container w-full max-w-2xl p-8 text-center <%= inventoryState ? '' : 'hidden' %>">
-        <h2 class="text-3xl font-bold mb-6 text-yellow-400">Seu Inventário</h2>
-        
-        <div id="inventory-grid" class="inventory-grid mb-6">
-            <!-- Slots do inventário serão preenchidos aqui -->
-        </div>
-
-        <div id="discard-area" class="discard-area">
-            Arrastar itens aqui para descartar
-        </div>
-
-        <div class="mt-8">
-            <button id="return-home-from-inventory-btn" class="btn-pirate w-full">Voltar para Casa</button>
-        </div>
-    </div>
-
+    <script src="/socket.io/socket.io.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             console.log("DOM Content Loaded. Initializing UI.");
@@ -208,9 +268,34 @@
             const resultMessageEl = document.getElementById('result-message');
             const userLevelEl = document.getElementById('user-level');
             
-
             const inventoryGridEl = document.getElementById('inventory-grid');
             const discardAreaEl = document.getElementById('discard-area');
+
+            // --- Código do Chat (NOVO BLOCO) ---
+            const socket = io(); // Conecta ao servidor Socket.IO
+            const chatMessagesEl = document.getElementById('messages'); // Renomeado para evitar conflito com 'messages' no seu chat-form
+            const chatFormEl = document.getElementById('chat-form');
+            const chatInputEl = document.getElementById('chat-input');
+            const currentUserName = "<%= userName %>"; // Pega o nome do usuário do EJS
+
+            chatFormEl.addEventListener('submit', (e) => {
+                e.preventDefault(); // Previne o recarregamento da página
+                if (chatInputEl.value) {
+                    // Envia a mensagem para o servidor
+                    socket.emit('chat message', `${currentUserName}: ${chatInputEl.value}`);
+                    chatInputEl.value = ''; // Limpa o input
+                }
+            });
+
+            // Escuta por mensagens do servidor
+            socket.on('chat message', (msg) => {
+                const item = document.createElement('li');
+                item.textContent = msg; // Exibe a mensagem
+                chatMessagesEl.appendChild(item);
+                chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight; // Scroll para a última mensagem
+            });
+            // --- Fim do Código do Chat ---
+
 
             // CORREÇÃO: Garante que currentUserInventory seja sempre um array parseando corretamente.
             let currentUserInventory;
