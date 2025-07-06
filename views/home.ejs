@@ -165,8 +165,8 @@
             <h1 class="text-4xl font-bold mb-6 text-yellow-400">Bem-vindo, Capitão <%= userName %>!</h1>
             
             <div class="flex flex-col items-center mb-8">
-                <img src="https://placehold.co/200x200/3182ce/ffffff?text=Pirata" alt="Seu Pirata" class="rounded-full border-4 border-yellow-500 mb-4 shadow-lg">
-                <p class="text-2xl font-semibold text-green-400">Nível: <span class="text-white" id="user-level"><%= userLevel %></span></p>
+                <img src="https://placehold.co/200x200/3182ce/ffffff?text=<%= character.type %>" alt="Seu <%= character.type %>" class="rounded-full border-4 border-yellow-500 mb-4 shadow-lg">
+                <p class="text-2xl font-semibold text-green-400">Nível: <span class="text-white" id="character-level"><%= character.level %></span></p>
             </div>
 
             <p class="text-lg mb-8">Sua aventura pelos sete mares começa agora! Prepare-se para desafios, tesouros e glória!</p>
@@ -266,7 +266,8 @@
             const battleLogEl = document.getElementById('battle-log');
             const battleResultEl = document.getElementById('battle-result');
             const resultMessageEl = document.getElementById('result-message');
-            const userLevelEl = document.getElementById('user-level');
+            // ATUALIZADO: id de 'user-level' para 'character-level'
+            const characterLevelEl = document.getElementById('character-level'); 
             
             const inventoryGridEl = document.getElementById('inventory-grid');
             const discardAreaEl = document.getElementById('discard-area');
@@ -301,7 +302,8 @@
             let currentUserInventory;
             try {
                 // Tenta parsear userInventory, se for nulo ou indefinido, usa um array vazio.
-                currentUserInventory = JSON.parse('<%- JSON.stringify(userInventory || []) %>');
+                // AQUI: userInventory não é mais um parâmetro diretamente, ele virá do 'character.inventory'
+                currentUserInventory = JSON.parse('<%- JSON.stringify(character.inventory || []) %>');
                 // Verifica se o resultado é realmente um array. Se não for, força para um array vazio.
                 if (!Array.isArray(currentUserInventory)) {
                     console.warn("currentUserInventory was not an array after parsing, resetting to empty array.");
@@ -382,7 +384,8 @@
 
                     const itemDiv = document.createElement('div');
                     itemDiv.classList.add('inventory-item');
-                    itemDiv.textContent = item;
+                    // Assumindo que o item no inventário é um objeto com 'item' e 'quantity'
+                    itemDiv.textContent = `${item.item} (${item.quantity})`; // Ex: "Espada (1)"
                     itemDiv.setAttribute('draggable', 'true');
                     itemDiv.dataset.index = index; // Armazena o índice original do item
                     slot.appendChild(itemDiv);
@@ -409,7 +412,8 @@
                     const data = await response.json();
                     if (data.success) {
                         console.log("Inventário salvo com sucesso no backend!");
-                        currentUserInventory = data.inventory;
+                        // ATUALIZADO: Garante que o inventory seja atualizado do backend
+                        currentUserInventory = data.inventory; 
                         updateInventoryUI();
                     } else {
                         console.error("Erro ao salvar inventário no backend:", data.message);
@@ -449,10 +453,11 @@
                 updateUI(data.battleState, initialInventoryState); // inventoryState não muda durante a batalha
                 
                 if (data.battleState.status === "win") {
-                    currentUserInventory = data.battleState.userInventory;
-                    userLevelEl.textContent = data.userLevel;
-                    updateInventoryUI();
-                    
+                    currentUserInventory = data.battleState.userInventory; // Atualiza o inventário com o que veio do backend
+                    // ATUALIZADO: Atualiza o nível usando characterLevelEl
+                    characterLevelEl.textContent = data.userLevel; // Supondo que 'data.userLevel' virá do backend na vitória
+                    updateInventoryUI(); // Redesenha o inventário
+
                     setTimeout(() => {
                         console.log("Recarregando página após vitória para atualizar dados.");
                         window.location.reload(); 
