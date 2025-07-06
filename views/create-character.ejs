@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Criar Personagem</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f0f2f5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .form-container {
+            background-color: #ffffff;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 450px;
+            text-align: center;
+        }
+        .form-container h2 {
+            margin-bottom: 25px;
+            color: #333;
+            font-size: 28px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+            text-align: left;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #555;
+        }
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 16px;
+            box-sizing: border-box;
+            transition: border-color 0.3s;
+        }
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #007bff;
+            box-shadow: 0 0 5px rgba(0, 123, 255, 0.25);
+        }
+        .submit-btn {
+            width: 100%;
+            padding: 12px;
+            background-color: #28a745; /* Cor verde para criar */
+            border: none;
+            border-radius: 5px;
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.2s;
+        }
+        .submit-btn:hover {
+            background-color: #218838;
+            transform: translateY(-2px);
+        }
+        .back-link {
+            margin-top: 20px;
+            font-size: 14px;
+            color: #555;
+        }
+        .back-link a {
+            color: #007bff;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .back-link a:hover {
+            text-decoration: underline;
+        }
+        .message {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 5px;
+            font-weight: bold;
+            display: none; /* Escondido por padrão */
+        }
+        .message.success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .message.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+    </style>
+</head>
+<body>
+    <div class="form-container">
+        <h2>Criar Novo Personagem</h2>
+        <form id="createCharacterForm">
+            <div class="form-group">
+                <label for="name">Nome do Personagem:</label>
+                <input type="text" id="name" name="name" placeholder="Ex: Gandalf, Legolas" required autocomplete="off">
+            </div>
+            <div class="form-group">
+                <label for="type">Tipo (Raça):</label>
+                <select id="type" name="type" required>
+                    <option value="">Selecione uma raça</option>
+                    <option value="Humano">Humano</option>
+                    <option value="Elfo">Elfo</option>
+                    <option value="Anão">Anão</option>
+                    <option value="Orc">Orc</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="gender">Gênero:</label>
+                <select id="gender" name="gender" required>
+                    <option value="">Selecione o gênero</option>
+                    <option value="Masculino">Masculino</option>
+                    <option value="Feminino">Feminino</option>
+                    <option value="Outro">Outro</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="characterClass">Classe:</label>
+                <select id="characterClass" name="characterClass" required>
+                    <option value="">Selecione uma classe</option>
+                    <option value="Guerreiro">Guerreiro</option>
+                    <option value="Mago">Mago</option>
+                    <option value="Arqueiro">Arqueiro</option>
+                    <option value="Ladrão">Ladrão</option>
+                </select>
+            </div>
+            <button type="submit" class="submit-btn">Criar Personagem</button>
+            <p id="createCharacterMessage" class="message"></p>
+        </form>
+
+        <% if (user && user.characters && user.characters.length > 0) { %>
+            <div class="back-link">
+                <p>Voltar para a seleção de personagens? <a href="/select-character">Voltar</a></p>
+            </div>
+        <% } %>
+    </div>
+
+    <script>
+        document.getElementById('createCharacterForm').addEventListener('submit', async function(event) {
+            event.preventDefault(); // Impede o envio padrão do formulário
+
+            const name = document.getElementById('name').value;
+            const type = document.getElementById('type').value;
+            const gender = document.getElementById('gender').value;
+            const characterClass = document.getElementById('characterClass').value;
+
+            const messageElement = document.getElementById('createCharacterMessage');
+            messageElement.textContent = ''; // Limpa mensagens anteriores
+            messageElement.style.display = 'none'; // Esconde a mensagem
+            messageElement.classList.remove('success', 'error'); // Remove classes de estilo
+
+            try {
+                const response = await fetch('/create-character', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ name, type, gender, characterClass })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    messageElement.textContent = data.message;
+                    messageElement.classList.add('success');
+                    messageElement.style.display = 'block';
+
+                    // Redireciona após um pequeno delay para a mensagem ser lida
+                    setTimeout(() => {
+                        if (data.redirectTo) {
+                            window.location.href = data.redirectTo;
+                        } else {
+                            window.location.href = '/select-character'; // Fallback
+                        }
+                    }, 1500); // Redireciona após 1.5 segundos
+                } else {
+                    messageElement.textContent = data.message;
+                    messageElement.classList.add('error');
+                    messageElement.style.display = 'block';
+                }
+            } catch (error) {
+                console.error('Erro ao criar personagem:', error);
+                messageElement.textContent = 'Erro ao conectar ao servidor para criar personagem.';
+                messageElement.classList.add('error');
+                messageElement.style.display = 'block';
+            }
+        });
+    </script>
+</body>
+</html>
