@@ -1,16 +1,18 @@
 const express = require('express');
 const path = require("path");
 const bcrypt = require("bcrypt");
+// Se 'config' (seu modelo de usuário) está na mesma pasta que index.js (ou seja, src/)
 const collection = require("./config"); // Seu modelo de usuário (LoginSchema)
 const http = require('http');
 const { Server } = require("socket.io");
-const Character = require('./models/Character.'); // Importa o novo modelo de Personagem
+// CORRIGIDO: Removido o '.' extra e o 'src/' inicial
+const Character = require('./models/Character'); // Importa o novo modelo de Personagem
 const session = require('express-session');
 const MongoStore = require('connect-mongo');
 const mongoose = require('mongoose');
 
-// NOVO: Importar o modelo de mensagem de chat
-const ChatMessage = require('./src/models/ChatMessage'); // Ajustado o caminho para src/models/ChatMessage
+// CORRIGIDO: Removido o 'src/' inicial
+const ChatMessage = require('./models/ChatMessage'); // Ajustado o caminho para src/models/ChatMessage
 
 const app = express();
 
