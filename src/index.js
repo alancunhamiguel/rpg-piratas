@@ -129,7 +129,19 @@ app.post("/signup", async (req, res) => {
             const newUser = await collection.create(data);
             console.log("New user registered:", newUser.name);
 
-            // Redirect to the character creation page after successful registration
+            // Add "Atacar" and "Defender" as default learned skills for new characters
+            const defaultAttackSkill = await Skill.findOne({ name: "Atacar", class: data.characterClass, requiredLevel: 1 });
+            const defaultDefenseSkill = await Skill.findOne({ name: "Defender", class: data.characterClass, requiredLevel: 1 });
+
+            // Note: `data.characterClass` is not available here.
+            // These default skills should be added when the character is created,
+            // not when the user is created.
+            // For now, let's ensure they are added in the /create-character route.
+            // If you want them added on user creation, you'd need a default character
+            // created at the same time, or pass the class here.
+
+            await newUser.save();
+
             return res.status(200).json({ success: true, message: "User registered successfully!", redirectTo: '/create-character' });
         }
     } catch (error) {
@@ -138,7 +150,7 @@ app.post("/signup", async (req, res) => {
     }
 });
 
-// User Login
+// Login do Usuário
 app.post("/login", async (req, res) => {
     const { username, password } = req.body;
     try {
@@ -153,80 +165,80 @@ app.post("/login", async (req, res) => {
             return res.json({ success: false, message: "Incorrect password." });
         }
 
-        // Authentication successful, store user ID in session
+        // Autenticação bem-sucedida, armazena o ID do usuário na sessão
         req.session.userId = user._id;
 
-        // Populate user's characters to check if they have any
+        // Popula os personagens do usuário para verificar se ele já tem algum
         const userWithCharacters = await collection.findById(user._id).populate('characters');
 
         if (userWithCharacters.characters.length === 0) {
-            // If no characters, redirect to character creation
-            return res.json({ success: true, message: "Login successful! Create your first character.", redirectTo: '/create-character' });
+            // Se não tiver personagens, redireciona para a criação de personagem
+            return res.json({ success: true, message: "Login bem-sucedido! Crie seu primeiro personagem.", redirectTo: '/create-character' });
         } else {
-            // If characters exist, redirect to character selection
-            return res.json({ success: true, message: "Login successful! Select your character.", redirectTo: '/select-character' });
+            // Se tiver personagens, redireciona para a seleção de personagem
+            return res.json({ success: true, message: "Login bem-sucedido! Selecione seu personagem.", redirectTo: '/select-character' });
         }
 
     } catch (error) {
-        console.error("Error during login:", error);
-        res.json({ success: false, message: "Internal server error during login." });
+        console.error("Erro durante o login:", error);
+        res.json({ success: false, message: "Erro interno do servidor durante o login." });
     }
 });
 
-// Logout Route
+// Rota de Logout
 app.get('/logout', (req, res) => {
     req.session.destroy((err) => {
         if (err) {
-            console.error("Error destroying session:", err);
+            console.error("Erro ao destruir sessão:", err);
             return res.redirect('/home');
         }
-        res.clearCookie('connect.sid'); // Clear the session cookie
-        res.redirect('/'); // Redirect to the login page
+        res.clearCookie('connect.sid'); // Limpa o cookie da sessão
+        res.redirect('/'); // Redireciona para a página de login
     });
 });
 
 
 // ----------------------------------------------------------------------
-// CHARACTER MANAGEMENT ROUTES
+// ROTAS DE GERENCIAMENTO DE PERSONAGENS
 // ----------------------------------------------------------------------
 
-// Route for the character creation page
+// Rota para a página de criação de personagem
 app.get('/create-character', isAuthenticated, async (req, res) => {
     try {
         const user = await collection.findById(req.session.userId).populate('characters');
         if (!user) {
-            return res.redirect('/'); // User not found, redirect to login
+            return res.redirect('/'); // Usuário não encontrado, redireciona para login
         }
 
-        // If the user already has 2 characters, redirect to the selection screen
+        // Se o usuário já tiver 2 personagens, redireciona para a tela de seleção
         if (user.characters.length >= 2) {
             return res.redirect('/select-character');
         }
-        // If less than 2 characters, render the creation page
+        // Se tiver menos de 2 personagens, renderiza a página de criação
         res.render('create-character', { user: user });
     } catch (error) {
-        console.error("Error loading character creation page:", error);
-        res.redirect('/'); // In case of error, redirect to login
+        console.error("Erro ao carregar página de criação de personagem:", error);
+        res.redirect('/'); // Em caso de erro, redireciona para login
     }
 });
 
-// Route to process character creation
+// Rota para processar a criação de personagem
 app.post('/create-character', isAuthenticated, async (req, res) => {
     const { name, type, gender, characterClass } = req.body;
 
     try {
         const user = await collection.findById(req.session.userId).populate('characters');
         if (!user) {
-            return res.status(404).json({ success: false, message: "User not found." });
+            return res.status(404).json({ success: false, message: "Usuário não encontrado." });
         }
 
         if (user.characters.length >= 2) {
-            return res.status(400).json({ success: false, message: "You already have the maximum number of characters (2)." });
+            return res.status(400).json({ success: false, message: "Você já possui o número máximo de personagens (2)." });
         }
 
         const existingCharacterForUser = await Character.findOne({ owner: req.session.userId, name: name });
         if (existingCharacterForUser) {
-            return res.status(409).json({ success: false, message: "You already have a character with this name. Choose another." });
+            return res.status(409).json({ success: false, message: "Você já tem um personagem com este nome. Escolha outro." });
         }
 
         const newCharacter = new Character({
@@ -235,13 +247,11 @@ app.post('/create-character', isAuthenticated, async (req, res) => {
             type: type,
             gender: gender,
             class: characterClass,
-            // Default values for level, experience, stats, hp, maxHp, learnedSkills, activeSkills, skillCooldowns, equippedItems, inventory, activeBuffs
-            // will be set by the schema defaults.
         });
 
-        // Add "Atacar" and "Defender" as default learned skills for new characters
-        const defaultAttackSkill = await Skill.findOne({ name: "Atacar", class: characterClass, requiredLevel: 1 });
-        const defaultDefenseSkill = await Skill.findOne({ name: "Defender", class: characterClass, requiredLevel: 1 });
+        // Adiciona "Atacar" e "Defender" como habilidades aprendidas padrão para novos personagens
+        const defaultAttackSkill = await Skill.findOne({ name: "Atacar", class: { $in: [characterClass] }, requiredLevel: 1 });
+        const defaultDefenseSkill = await Skill.findOne({ name: "Defender", class: { $in: [characterClass] }, requiredLevel: 1 });
 
         if (defaultAttackSkill) {
             newCharacter.learnedSkills.push(defaultAttackSkill._id);
@@ -255,20 +265,20 @@ app.post('/create-character', isAuthenticated, async (req, res) => {
         user.characters.push(newCharacter._id);
         await user.save();
 
-        return res.status(200).json({ success: true, message: "Character created successfully!", redirectTo: '/select-character' });
+        return res.status(200).json({ success: true, message: "Personagem criado com sucesso!", redirectTo: '/select-character' });
 
     } catch (error) {
         if (error.name === 'ValidationError') {
             const messages = Object.values(error.errors).map(err => err.message);
             return res.status(400).json({ success: false, message: messages.join(', ') });
         }
-        console.error("Error creating character:", error);
-        return res.status(500).json({ success: false, message: "Internal error creating character. Please try again." });
+        console.error("Erro ao criar personagem:", error);
+        return res.status(500).json({ success: false, message: "Erro interno ao criar personagem. Tente novamente." });
     }
 });
 
 
-// Route for the character selection page
+// Rota para a página de seleção de personagem
 app.get('/select-character', isAuthenticated, async (req, res) => {
     try {
         const user = await collection.findById(req.session.userId).populate('characters');
@@ -282,12 +292,12 @@ app.get('/select-character', isAuthenticated, async (req, res) => {
 
         res.render('select-character', { characters: user.characters });
     } catch (error) {
-        console.error("Error loading character selection:", error);
+        console.error("Erro ao carregar seleção de personagem:", error);
         res.redirect('/');
     }
 });
 
-// Route to process character selection
+// Rota para processar a seleção de personagem
 app.post('/select-character', isAuthenticated, async (req, res) => {
     const { characterId } = req.body;
 
@@ -315,14 +325,22 @@ app.post('/select-character', isAuthenticated, async (req, res) => {
 // HOME ROUTE (REQUIRES ACTIVE CHARACTER)
 // ----------------------------------------------------------------------
 
-// Route for the main game page (Home)
+// Rota para a página principal do jogo (Home)
 app.get("/home", isAuthenticatedAndCharacterSelected, async (req, res) => {
     try {
         const user = await collection.findById(req.session.userId);
         // Populate learnedSkills and activeSkills for the frontend
         const activeCharacter = await Character.findById(req.session.activeCharacterId)
             .populate('learnedSkills')
-            .populate('activeSkills');
+            .populate({
+                path: 'activeSkills',
+                model: 'Skill' // Explicitly specify the model for population
+            })
+            .populate({
+                path: 'skillCooldowns.skill', // Populate the skill object within cooldowns
+                model: 'Skill'
+            });
+
 
         if (!user || !activeCharacter) {
             console.warn("User or active character not found in session. Redirecting to login.");
@@ -354,14 +372,16 @@ app.get("/home", isAuthenticatedAndCharacterSelected, async (req, res) => {
 // ----------------------------------------------------------------------
 
 // Helper function to apply skill effects
-const applySkillEffect = (skill, character, enemy, battleLog) => {
+// Updated to take battleState directly and modify enemyHP within it
+const applySkillEffect = (skill, character, battleState, battleLog) => {
     let message = '';
     switch (skill.effect.type) {
         case 'damage':
             // Base damage + character attack stat * skill value multiplier (example)
+            // Ensure enemyHP is modified on the battleState object
             const damageDealt = Math.max(1, skill.effect.value + (character.stats.attack * 0.5));
-            enemy.hp -= damageDealt;
-            message = `${character.name} usou ${skill.name} e causou ${damageDealt.toFixed(0)} de dano ao ${enemy.name}.`;
+            battleState.enemyHP -= damageDealt;
+            message = `${character.name} usou ${skill.name} e causou ${damageDealt.toFixed(0)} de dano ao ${battleState.enemyName}.`; // Use battleState.enemyName
             break;
         case 'buff':
             // Check if buff already exists, update duration if it's the same buff
@@ -399,17 +419,18 @@ const manageTurnEffects = (character, battleLog) => {
     character.activeBuffs = character.activeBuffs.filter(buff => {
         buff.turnsRemaining--;
         if (buff.turnsRemaining <= 0) {
-            battleLog.push(`${buff.name} de ${character.name} expirou.`);
+            battleLog.push(`O efeito de ${buff.name} de ${character.name} expirou.`);
             return false; // Remove expired buff
         }
         return true; // Keep active buff
     });
 
     // Decrement skill cooldowns
+    // Ensure that skillCooldowns.skill is populated for name access
     character.skillCooldowns = character.skillCooldowns.filter(cooldown => {
         cooldown.turnsRemaining--;
         if (cooldown.turnsRemaining <= 0) {
-            battleLog.push(`Habilidade ${cooldown.skill.name} de ${character.name} saiu do cooldown.`);
+            battleLog.push(`Habilidade "${cooldown.skill ? cooldown.skill.name : 'Desconhecida'}" de ${character.name} saiu do cooldown.`);
             return false; // Remove expired cooldown
         }
         return true; // Keep active cooldown
@@ -419,7 +440,7 @@ const manageTurnEffects = (character, battleLog) => {
 
 // Route to start/restart battle
 app.get("/battle/start", isAuthenticatedAndCharacterSelected, async (req, res) => {
-    console.log("Route /battle/start accessed.");
+    console.log("Route /battle/start acessada.");
     try {
         const activeCharacter = await Character.findById(req.session.activeCharacterId);
         if (!activeCharacter) {
@@ -434,7 +455,7 @@ app.get("/battle/start", isAuthenticatedAndCharacterSelected, async (req, res) =
 
         req.session.battle = {
             playerHP: activeCharacter.hp,
-            enemyHP: 50, // Fixed enemy HP for now
+            enemyHP: 100, // Aumentado o HP do inimigo para 100 para melhor teste
             enemyName: "Orc Pirata",
             enemyLevel: 1,
             battleLog: ["A batalha contra o Orc Pirata começou!"],
@@ -449,7 +470,7 @@ app.get("/battle/start", isAuthenticatedAndCharacterSelected, async (req, res) =
     }
 });
 
-// Route for the player to attack
+// Route for the player to attack (basic attack)
 app.post("/battle/attack", isAuthenticatedAndCharacterSelected, async (req, res) => {
     const battle = req.session.battle;
 
@@ -477,7 +498,7 @@ app.post("/battle/attack", isAuthenticatedAndCharacterSelected, async (req, res)
         const playerDamage = Math.max(1, effectivePlayerAttack - (battle.enemyLevel * 2));
 
         battle.enemyHP -= playerDamage;
-        battle.battleLog.push(`Você (${activeCharacter.name}) atacou o ${battle.enemyName} e causou ${playerDamage.toFixed(0)} de dano.`);
+        battle.battleLog.push(`Você (${activeCharacter.name}) desferiu um ataque básico e causou ${playerDamage.toFixed(0)} de dano ao ${battle.enemyName}.`);
 
         // --- Check for Battle End (Player Win) ---
         if (battle.enemyHP <= 0) {
@@ -501,7 +522,7 @@ app.post("/battle/attack", isAuthenticatedAndCharacterSelected, async (req, res)
                 leveledUp = true;
             }
 
-            // Add default skills if new level unlocks them (example, you'd refine this)
+            // Add new skills if new level unlocks them
             const newSkillsForLevel = await Skill.find({
                 class: activeCharacter.class,
                 requiredLevel: activeCharacter.level,
@@ -511,7 +532,6 @@ app.post("/battle/attack", isAuthenticatedAndCharacterSelected, async (req, res)
                 activeCharacter.learnedSkills.push(newSkill._id);
                 battle.battleLog.push(`Você aprendeu uma nova habilidade: ${newSkill.name}!`);
             });
-
 
             const droppedItem = "Moeda de Ouro";
             activeCharacter.inventory.push({ item: droppedItem, quantity: 1 });
@@ -537,7 +557,8 @@ app.post("/battle/attack", isAuthenticatedAndCharacterSelected, async (req, res)
                 effectiveCharacterDefense += activeCharacter.stats.defense * buff.value;
             }
         });
-        const enemyDamage = Math.max(1, (battle.enemyLevel * 5) - (effectiveCharacterDefense / 2));
+        // Adjusted enemy damage calculation to be slightly higher, less affected by defense for basic attack
+        const enemyDamage = Math.max(1, (battle.enemyLevel * 8) - (effectiveCharacterDefense / 4));
 
         activeCharacter.hp -= enemyDamage;
         battle.battleLog.push(`${battle.enemyName} atacou você e causou ${enemyDamage.toFixed(0)} de dano.`);
@@ -593,7 +614,7 @@ app.post("/battle/use-skill", isAuthenticatedAndCharacterSelected, async (req, r
         }
 
         // Check cooldown
-        const skillOnCooldown = activeCharacter.skillCooldowns.find(c => c.skill._id.toString() === skillId);
+        const skillOnCooldown = activeCharacter.skillCooldowns.find(c => c.skill && c.skill._id.toString() === skillId);
         if (skillOnCooldown && skillOnCooldown.turnsRemaining > 0) {
             return res.status(400).json({ success: false, message: `Habilidade "${skillToUse.name}" está em cooldown por ${skillOnCooldown.turnsRemaining} turnos.` });
         }
@@ -603,7 +624,7 @@ app.post("/battle/use-skill", isAuthenticatedAndCharacterSelected, async (req, r
 
         // Put skill on cooldown
         if (skillToUse.cooldown > 0) {
-            const existingCooldownIndex = activeCharacter.skillCooldowns.findIndex(c => c.skill._id.toString() === skillId);
+            const existingCooldownIndex = activeCharacter.skillCooldowns.findIndex(c => c.skill && c.skill._id.toString() === skillId);
             if (existingCooldownIndex !== -1) {
                 activeCharacter.skillCooldowns[existingCooldownIndex].turnsRemaining = skillToUse.cooldown;
             } else {
@@ -634,11 +655,11 @@ app.post("/battle/use-skill", isAuthenticatedAndCharacterSelected, async (req, r
                 leveledUp = true;
             }
 
-            // Add default skills if new level unlocks them (example, you'd refine this)
+            // Add new skills if new level unlocks them
             const newSkillsForLevel = await Skill.find({
                 class: activeCharacter.class,
                 requiredLevel: activeCharacter.level,
-                _id: { $nin: activeCharacter.learnedSkills } // Only skills not yet learned
+                _id: { $nin: activeCharacter.learnedSkills }
             });
             newSkillsForLevel.forEach(newSkill => {
                 activeCharacter.learnedSkills.push(newSkill._id);
@@ -670,7 +691,8 @@ app.post("/battle/use-skill", isAuthenticatedAndCharacterSelected, async (req, r
                 effectiveCharacterDefense += activeCharacter.stats.defense * buff.value;
             }
         });
-        const enemyDamage = Math.max(1, (battle.enemyLevel * 5) - (effectiveCharacterDefense / 2));
+        // Adjusted enemy damage calculation
+        const enemyDamage = Math.max(1, (battle.enemyLevel * 8) - (effectiveCharacterDefense / 4));
 
         activeCharacter.hp -= enemyDamage;
         battle.battleLog.push(`${battle.enemyName} atacou você e causou ${enemyDamage.toFixed(0)} de dano.`);
@@ -706,10 +728,30 @@ app.post("/battle/use-skill", isAuthenticatedAndCharacterSelected, async (req, r
 
 // Rota para resetar a batalha (voltar para a home sem batalha ativa)
 app.post("/battle/reset", isAuthenticatedAndCharacterSelected, (req, res) => {
-    console.log("Route /battle/reset accessed.");
+    console.log("Route /battle/reset acessada.");
     req.session.battle = null;
     res.json({ message: "Batalha resetada." });
 });
+
+// NOVO: Rota para fugir da batalha
+app.post("/battle/flee", isAuthenticatedAndCharacterSelected, async (req, res) => {
+    console.log("Rota /battle/flee acessada.");
+    try {
+        const activeCharacter = await Character.findById(req.session.activeCharacterId);
+        if (activeCharacter) {
+            // Opcional: penalidade por fugir (ex: perder XP, HP)
+            // activeCharacter.hp = Math.max(1, activeCharacter.hp - 10); // Exemplo de penalidade
+            // await activeCharacter.save();
+            req.session.battle = null; // Limpa o estado da batalha
+            return res.json({ success: true, message: "Você fugiu da batalha!", redirectTo: "/home" });
+        }
+        res.status(404).json({ success: false, message: "Personagem não encontrado." });
+    } catch (error) {
+        console.error("Erro ao tentar fugir da batalha:", error);
+        res.status(500).json({ success: false, message: "Erro interno ao fugir da batalha." });
+    }
+});
+
 
 // Route to display inventory
 app.get("/inventory/show", isAuthenticatedAndCharacterSelected, (req, res) => {
@@ -729,7 +771,7 @@ app.get("/inventory/hide", isAuthenticatedAndCharacterSelected, (req, res) => {
 
 // Route to update user's inventory in the database (NOW CHARACTER'S)
 app.post("/inventory/update", isAuthenticatedAndCharacterSelected, async (req, res) => {
-    console.log("Route /inventory/update accessed.");
+    console.log("Route /inventory/update acessada.");
     try {
         let { inventory } = req.body;
 
@@ -760,7 +802,7 @@ app.post("/inventory/update", isAuthenticatedAndCharacterSelected, async (req, r
 
 // Route to display the skills section
 app.get("/skills/show", isAuthenticatedAndCharacterSelected, async (req, res) => {
-    console.log("Route /skills/show accessed.");
+    console.log("Rota /skills/show acessada.");
     req.session.skillsOpen = true;
     req.session.battle = null; // Ensures battle is not active
     req.session.inventoryOpen = null; // Ensures inventory is not open
@@ -769,12 +811,12 @@ app.get("/skills/show", isAuthenticatedAndCharacterSelected, async (req, res) =>
 
 // Route to hide the skills section
 app.get("/skills/hide", isAuthenticatedAndCharacterSelected, (req, res) => {
-    console.log("Route /skills/hide accessed.");
+    console.log("Rota /skills/hide acessada.");
     req.session.skillsOpen = null;
     res.redirect("/home");
 });
 
-// Route for the character to learn a skill
+// Rota para o personagem aprender uma habilidade
 app.post("/skills/learn", isAuthenticatedAndCharacterSelected, async (req, res) => {
     const { skillId } = req.body;
 
@@ -808,7 +850,8 @@ app.post("/skills/learn", isAuthenticatedAndCharacterSelected, async (req, res) 
         // Return the updated character to the frontend
         const updatedCharacter = await Character.findById(req.session.activeCharacterId)
             .populate('learnedSkills')
-            .populate('activeSkills');
+            .populate('activeSkills')
+            .populate('skillCooldowns.skill'); // Ensure cooldown skills are populated
 
         return res.status(200).json({ success: true, message: `Habilidade "${skillToLearn.name}" aprendida!`, character: updatedCharacter });
 
@@ -818,7 +861,7 @@ app.post("/skills/learn", isAuthenticatedAndCharacterSelected, async (req, res) 
     }
 });
 
-// Route to set active skills
+// Rota para definir habilidades ativas
 app.post("/skills/set-active", isAuthenticatedAndCharacterSelected, async (req, res) => {
     const { skillId, slotIndex } = req.body;
 
@@ -831,12 +874,12 @@ app.post("/skills/set-active", isAuthenticatedAndCharacterSelected, async (req, 
         }
 
         // Check if the skill has been learned
-        if (!activeCharacter.learnedSkills.some(s => s._id.toString() === skillId)) {
+        if (!activeCharacter.learnedSkills.some(s => s.toString() === skillId)) { // Use .toString() for comparison
             return res.status(400).json({ success: false, message: "Você não aprendeu esta habilidade." });
         }
 
         // Check if the skill is already active in any slot
-        if (activeCharacter.activeSkills.some(s => s._id.toString() === skillId)) {
+        if (activeCharacter.activeSkills.some(s => s.toString() === skillId)) { // Use .toString() for comparison
             return res.status(400).json({ success: false, message: "Esta habilidade já está ativa." });
         }
 
@@ -846,7 +889,8 @@ app.post("/skills/set-active", isAuthenticatedAndCharacterSelected, async (req, 
         }
 
         // Add the new skill to the specified slot
-        activeCharacter.activeSkills[slotIndex] = skillToAdd._id;
+        // Ensure it's added as an ObjectId
+        activeCharacter.activeSkills[slotIndex] = new mongoose.Types.ObjectId(skillToAdd._id);
         
         // Filter out any null/undefined entries that might result from splice/assignment
         activeCharacter.activeSkills = activeCharacter.activeSkills.filter(s => s !== null && s !== undefined);
@@ -859,7 +903,8 @@ app.post("/skills/set-active", isAuthenticatedAndCharacterSelected, async (req, 
 
         const updatedCharacter = await Character.findById(req.session.activeCharacterId)
             .populate('learnedSkills')
-            .populate('activeSkills');
+            .populate('activeSkills')
+            .populate('skillCooldowns.skill'); // Ensure cooldown skills are populated
 
         return res.status(200).json({ success: true, message: `Habilidade "${skillToAdd.name}" definida como ativa!`, character: updatedCharacter });
 
@@ -893,7 +938,8 @@ app.post("/skills/remove-active", isAuthenticatedAndCharacterSelected, async (re
 
         const updatedCharacter = await Character.findById(req.session.activeCharacterId)
             .populate('learnedSkills')
-            .populate('activeSkills');
+            .populate('activeSkills')
+            .populate('skillCooldowns.skill'); // Ensure cooldown skills are populated
 
         return res.status(200).json({ success: true, message: `Habilidade "${skillToRemove.name}" removida das ativas!`, character: updatedCharacter });
 

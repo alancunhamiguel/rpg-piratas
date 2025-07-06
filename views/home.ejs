@@ -345,7 +345,6 @@
             </div>
 
             <div class="mb-6">
-                <!-- REMOVIDO: <button id="attack-btn" class="btn-pirate w-full mb-4">Atacar!</button> -->
                 <!-- Botões de Habilidade Ativa (serão preenchidos via JS) -->
                 <div id="active-battle-skills" class="flex justify-center gap-4 mb-4">
                     <!-- Skills ativas virão aqui -->
@@ -356,7 +355,8 @@
 
             <div class="hidden" id="battle-result">
                 <h3 class="text-2xl font-bold mb-4" id="result-message"></h3>
-                <button id="return-home-from-battle-btn" class="btn-pirate w-full">Voltar para Casa</button>
+                <button id="return-home-from-battle-btn" class="btn-pirate w-full mb-2">Voltar para Casa</button>
+                <button id="flee-battle-btn" class="btn-pirate bg-yellow-600 hover:bg-yellow-700 w-full">Fugir da Batalha</button>
             </div>
         </div>
 
@@ -430,8 +430,8 @@
             const showSkillsBtn = document.getElementById('show-skills-btn');
             const startBattleBtn = document.getElementById('start-battle-btn');
             const showInventoryBtn = document.getElementById('show-inventory-btn');
-            // REMOVIDO: const attackBtn = document.getElementById('attack-btn');
             const returnHomeFromBattleBtn = document.getElementById('return-home-from-battle-btn');
+            const fleeBattleBtn = document.getElementById('flee-battle-btn'); // NOVO BOTÃO FUGIR
             const returnHomeFromInventoryBtn = document.getElementById('return-home-from-inventory-btn');
             const returnHomeFromSkillsBtn = document.getElementById('return-home-from-skills-btn');
 
@@ -501,7 +501,9 @@
                     enemyNameEl.textContent = battleState.enemyName;
                     enemyLevelEl.textContent = battleState.enemyLevel;
                     enemyHpEl.textContent = battleState.enemyHP;
-                    enemyHpBarEl.style.width = `${Math.max(0, (battleState.enemyHP / 50) * 100)}%`; 
+                    // Ajuste para usar o HP máximo do inimigo (se você tiver um) ou um valor fixo
+                    // Assumindo que o HP inicial do inimigo é 100 (ajustado no index.js)
+                    enemyHpBarEl.style.width = `${Math.max(0, (battleState.enemyHP / 100) * 100)}%`; 
 
                     playerHpEl.textContent = battleState.playerHP;
                     playerHpBarEl.style.width = `${Math.max(0, (battleState.playerHP / characterData.maxHp) * 100)}%`; // Usa maxHp do personagem
@@ -519,18 +521,15 @@
                         resultMessageEl.classList.remove('text-red-500');
                         resultMessageEl.classList.add('text-green-500');
                         battleResultEl.classList.remove('hidden');
-                        // REMOVIDO: attackBtn.classList.add('hidden');
                         activeBattleSkillsEl.classList.add('hidden'); // Esconde botões de skill após vitória/derrota
                     } else if (battleState.status === "lose") {
                         resultMessageEl.textContent = "DERROTA! Você foi nocauteado!";
                         resultMessageEl.classList.remove('text-green-500');
                         resultMessageEl.classList.add('text-red-500');
                         battleResultEl.classList.remove('hidden');
-                        // REMOVIDO: attackBtn.classList.add('hidden');
                         activeBattleSkillsEl.classList.add('hidden'); // Esconde botões de skill após vitória/derrota
                     } else {
                         battleResultEl.classList.add('hidden');
-                        // REMOVIDO: attackBtn.classList.remove('hidden');
                         activeBattleSkillsEl.classList.remove('hidden'); // Mostra botões de skill
                     }
                     updateActiveBattleSkillsUI(); // Atualiza botões de habilidade na batalha
@@ -657,15 +656,27 @@
             // Função para atualizar os botões de habilidades na seção de batalha
             function updateActiveBattleSkillsUI() {
                 activeBattleSkillsEl.innerHTML = '';
+                // Adiciona o botão de ataque básico
+                const basicAttackSkill = allSkillsData.find(s => s.name === "Atacar");
+                if (basicAttackSkill) {
+                    const attackButton = document.createElement('button');
+                    attackButton.classList.add('btn-pirate', 'skill-battle-btn', 'px-6', 'py-3', 'bg-red-600', 'hover:bg-red-700');
+                    attackButton.textContent = basicAttackSkill.name;
+                    attackButton.dataset.skillId = basicAttackSkill._id;
+                    attackButton.addEventListener('click', () => useSkillInBattle(basicAttackSkill._id)); // Usa a rota de habilidade para o ataque básico
+                    activeBattleSkillsEl.appendChild(attackButton);
+                }
+
+                // Adiciona os botões das habilidades ativas selecionadas
                 characterData.activeSkills.forEach(skill => {
-                    if (skill) {
+                    if (skill && skill.name !== "Atacar") { // Evita duplicar o botão "Atacar" se já for uma skill ativa
                         const skillButton = document.createElement('button');
                         skillButton.classList.add('btn-pirate', 'skill-battle-btn', 'px-6', 'py-3');
                         skillButton.textContent = skill.name;
                         skillButton.dataset.skillId = skill._id;
 
                         // Verifica o cooldown da habilidade
-                        const cooldownInfo = characterData.skillCooldowns.find(c => c.skill._id === skill._id);
+                        const cooldownInfo = characterData.skillCooldowns.find(c => c.skill && c.skill._id === skill._id);
                         if (cooldownInfo && cooldownInfo.turnsRemaining > 0) {
                             skillButton.disabled = true;
                             skillButton.textContent = `${skill.name} (${cooldownInfo.turnsRemaining})`;
@@ -782,11 +793,11 @@
                 }
             }
 
-            // NOVO: Lógica para usar habilidade na batalha
+            // Lógica para usar habilidade na batalha
             async function useSkillInBattle(skillId) {
                 console.log(`Tentando usar habilidade: ${allSkillsData.find(s => s._id === skillId)?.name}`);
                 try {
-                    const response = await fetch('/battle/use-skill', {
+                    const response = await fetch('/battle/use-skill', { // Chamando a nova rota de uso de skill
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ skillId })
@@ -830,35 +841,6 @@
                 window.location.href = '/skills/show';
             });
 
-            // REMOVIDO: Event listener para o botão "Atacar!" original
-            /*
-            attackBtn.addEventListener('click', async () => {
-                console.log("Botão Atacar clicado.");
-                const response = await fetch('/battle/attack', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
-                });
-                const data = await response.json();
-                updateUI(data.battleState, initialInventoryState, initialSkillsState); 
-                
-                if (data.battleState.status === "win") {
-                    currentUserInventory = data.battleState.userInventory;
-                    characterLevelEl.textContent = data.character.level;
-                    updateInventoryUI();
-                    
-                    characterData = data.character;
-                    updateSkillsUI();
-
-                    setTimeout(() => {
-                        console.log("Recarregando página após vitória para atualizar dados.");
-                        window.location.reload(); 
-                    }, 1500); 
-                }
-            });
-            */
-
             returnHomeFromBattleBtn.addEventListener('click', async () => {
                 console.log("Botão Voltar para Casa (Batalha) clicado. Resetando batalha e redirecionando.");
                 const response = await fetch('/battle/reset', {
@@ -873,6 +855,25 @@
                 }
             });
 
+            // NOVO: Listener para o botão Fugir da Batalha
+            fleeBattleBtn.addEventListener('click', async () => {
+                console.log("Botão Fugir da Batalha clicado.");
+                const response = await fetch('/battle/flee', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                const data = await response.json();
+                if (data.success) {
+                    alert(data.message); // Exibe a mensagem de fuga
+                    window.location.href = data.redirectTo; // Redireciona para /home
+                } else {
+                    alert(data.message); // Exibe mensagem de erro
+                }
+            });
+
+
             returnHomeFromInventoryBtn.addEventListener('click', () => {
                 console.log("Botão Voltar para Casa (Inventário) clicado. Redirecionando para /inventory/hide.");
                 window.location.href = '/inventory/hide';
@@ -884,7 +885,6 @@
             });
 
             let draggedItem = null;
-            // REMOVIDO: let draggedSkill = null; // Não é mais necessário, usando draggedSkillId
 
             inventoryGridEl.addEventListener('dragstart', (e) => {
                 if (e.target.classList.contains('inventory-item')) {
