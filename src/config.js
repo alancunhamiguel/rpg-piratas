@@ -1,8 +1,11 @@
 const mongoose = require('mongoose');
 
-// Conectar ao MongoDB (substitua 'mongodb://localhost:27017/seu_banco_de_dados' pela sua URL de conexão)
-// Certifique-se de que o nome do seu banco de dados está correto aqui
-const connect = mongoose.connect("mongodb+srv://oncodyuser:gCLNx5rSSIXifYiE@rpguser-cluster.y0kadgf.mongodb.net/RPGUSER-CLUSTER?retryWrites=true&w=majority&appName=RPGUSER-CLUSTER");
+// Obtenha a URI do MongoDB da variável de ambiente, se definida.
+// Caso contrário, use a string diretamente.
+const MONGODB_URI = process.env.MONGODB_URI || "mongodb+srv://oncodyuser:gCLNx5rSSIXifYiE@rpguser-cluster.y0kadgf.mongodb.net/RPGUSER-CLUSTER?retryWrites=true&w=majority&appName=RPGUSER-CLUSTER";
+
+// Conectar ao MongoDB
+const connect = mongoose.connect(MONGODB_URI);
 
 // Verificar se a conexão foi bem-sucedida
 connect.then(() => {
@@ -23,14 +26,25 @@ const LoginSchema = new mongoose.Schema({
         type: String,
         required: true
     },
-    level: { // Campo 'level'
-        type: Number,
-        default: 0 // Define o valor padrão como 0
-    },
-    inventory: { // Adiciona o campo 'inventory' ao esquema
-        type: Array, // O inventário será um array de strings (nomes de itens)
-        default: []  // Define o valor padrão como um array vazio
-    }
+    // REMOVIDOS 'level' e 'inventory' daqui.
+    // Estes campos agora pertencerão aos personagens individuais.
+    // level: { // Campo 'level'
+    //     type: Number,
+    //     default: 0 // Define o valor padrão como 0
+    // },
+    // inventory: { // Adiciona o campo 'inventory' ao esquema
+    //     type: Array, // O inventário será um array de strings (nomes de itens)
+    //     default: []  // Define o valor padrão como um array vazio
+    // }
+
+    // NOVO CAMPO: Array para armazenar IDs de personagens associados a este usuário
+    characters: [{
+        type: mongoose.Schema.Types.ObjectId, // Tipo que armazena o ID de outro documento
+        ref: 'Character' // 'Character' é o nome do modelo que você criará em src/models/Character.js
+                         // É CRÍTICO que o nome do modelo aqui ('Character')
+                         // corresponda EXATAMENTE ao nome que você usará no
+                         // mongoose.model() dentro de Character.js.
+    }]
 });
 
 // Criar o modelo da coleção
