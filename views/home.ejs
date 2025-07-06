@@ -277,6 +277,24 @@
         .active-skill-slot .remove-skill-btn:hover {
             background-color: #c53030;
         }
+        /* Style for skill buttons in battle */
+        .skill-battle-btn {
+            background-color: #4299e1;
+            color: white;
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-weight: bold;
+            transition: background-color 0.3s ease;
+            cursor: pointer;
+        }
+        .skill-battle-btn:hover:not(:disabled) {
+            background-color: #3182ce;
+        }
+        .skill-battle-btn:disabled {
+            background-color: #718096;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
     </style>
 </head>
 <body class="flex flex-col items-center justify-center min-h-screen p-4">
@@ -293,7 +311,7 @@
             <p class="text-lg mb-8">Sua aventura pelos sete mares começa agora! Prepare-se para desafios, tesouros e glória!</p>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <button id="show-skills-btn" class="btn-pirate">Habilidades</button> <!-- NOVO BOTÃO -->
+                <button id="show-skills-btn" class="btn-pirate">Habilidades</button>
                 <button id="start-battle-btn" class="btn-pirate">Batalha Naval</button>
                 <button class="btn-pirate">Gerenciar Tripulação</button>
                 <button id="show-inventory-btn" class="btn-pirate">Inventário</button>
@@ -327,7 +345,7 @@
             </div>
 
             <div class="mb-6">
-                <button id="attack-btn" class="btn-pirate w-full mb-4">Atacar!</button>
+                <!-- REMOVIDO: <button id="attack-btn" class="btn-pirate w-full mb-4">Atacar!</button> -->
                 <!-- Botões de Habilidade Ativa (serão preenchidos via JS) -->
                 <div id="active-battle-skills" class="flex justify-center gap-4 mb-4">
                     <!-- Skills ativas virão aqui -->
@@ -407,15 +425,15 @@
             const homeSection = document.getElementById('home-section');
             const battleSection = document.getElementById('battle-section');
             const inventorySection = document.getElementById('inventory-section');
-            const skillsSection = document.getElementById('skills-section'); // NOVA SEÇÃO
+            const skillsSection = document.getElementById('skills-section');
 
-            const showSkillsBtn = document.getElementById('show-skills-btn'); // NOVO BOTÃO
+            const showSkillsBtn = document.getElementById('show-skills-btn');
             const startBattleBtn = document.getElementById('start-battle-btn');
             const showInventoryBtn = document.getElementById('show-inventory-btn');
-            const attackBtn = document.getElementById('attack-btn');
+            // REMOVIDO: const attackBtn = document.getElementById('attack-btn');
             const returnHomeFromBattleBtn = document.getElementById('return-home-from-battle-btn');
             const returnHomeFromInventoryBtn = document.getElementById('return-home-from-inventory-btn');
-            const returnHomeFromSkillsBtn = document.getElementById('return-home-from-skills-btn'); // NOVO BOTÃO
+            const returnHomeFromSkillsBtn = document.getElementById('return-home-from-skills-btn');
 
             const enemyNameEl = document.getElementById('enemy-name');
             const enemyLevelEl = document.getElementById('enemy-level');
@@ -431,7 +449,7 @@
             const inventoryGridEl = document.getElementById('inventory-grid');
             const discardAreaEl = document.getElementById('discard-area');
 
-            // --- Elementos da Seção de Habilidades (NOVOS) ---
+            // --- Elementos da Seção de Habilidades ---
             const learnedSkillsGridEl = document.getElementById('learned-skills-grid');
             const availableSkillsGridEl = document.getElementById('available-skills-grid');
             const activeSkillsSlotsEl = document.getElementById('active-skills-slots');
@@ -461,7 +479,6 @@
             // --- Fim do Código do Chat ---
 
             // Dados iniciais passados pelo servidor
-            // As habilidades serão passadas para cá
             let characterData = JSON.parse('<%- JSON.stringify(character) %>');
             let allSkillsData = JSON.parse('<%- JSON.stringify(allSkills) %>'); // TODAS as habilidades do DB
             let currentUserInventory = characterData.inventory || []; // Inventário do personagem
@@ -476,7 +493,7 @@
                 homeSection.classList.add('hidden');
                 battleSection.classList.add('hidden');
                 inventorySection.classList.add('hidden');
-                skillsSection.classList.add('hidden'); // Esconde a seção de habilidades
+                skillsSection.classList.add('hidden');
 
                 if (battleState && battleState.status === "active") {
                     console.log("Showing Battle Section.");
@@ -502,23 +519,26 @@
                         resultMessageEl.classList.remove('text-red-500');
                         resultMessageEl.classList.add('text-green-500');
                         battleResultEl.classList.remove('hidden');
-                        attackBtn.classList.add('hidden');
+                        // REMOVIDO: attackBtn.classList.add('hidden');
+                        activeBattleSkillsEl.classList.add('hidden'); // Esconde botões de skill após vitória/derrota
                     } else if (battleState.status === "lose") {
                         resultMessageEl.textContent = "DERROTA! Você foi nocauteado!";
                         resultMessageEl.classList.remove('text-green-500');
                         resultMessageEl.classList.add('text-red-500');
                         battleResultEl.classList.remove('hidden');
-                        attackBtn.classList.add('hidden');
+                        // REMOVIDO: attackBtn.classList.add('hidden');
+                        activeBattleSkillsEl.classList.add('hidden'); // Esconde botões de skill após vitória/derrota
                     } else {
                         battleResultEl.classList.add('hidden');
-                        attackBtn.classList.remove('hidden');
+                        // REMOVIDO: attackBtn.classList.remove('hidden');
+                        activeBattleSkillsEl.classList.remove('hidden'); // Mostra botões de skill
                     }
                     updateActiveBattleSkillsUI(); // Atualiza botões de habilidade na batalha
                 } else if (inventoryState) {
                     console.log("Showing Inventory Section. Calling updateInventoryUI.");
                     inventorySection.classList.remove('hidden');
                     updateInventoryUI();
-                } else if (skillsState) { // NOVO: Seção de Habilidades
+                } else if (skillsState) {
                     console.log("Showing Skills Section. Calling updateSkillsUI.");
                     skillsSection.classList.remove('hidden');
                     updateSkillsUI();
@@ -553,22 +573,20 @@
                 }
             }
 
-            // --- Funções para Habilidades (NOVAS) ---
+            // --- Funções para Habilidades ---
             function updateSkillsUI() {
                 learnedSkillsGridEl.innerHTML = '';
                 availableSkillsGridEl.innerHTML = '';
                 updateActiveSkillsSlotsUI(); // Atualiza os slots de habilidades ativas
 
                 // Habilidades Aprendidas
-                characterData.learnedSkills.forEach(skill => { // 'skill' já é o objeto populado
+                characterData.learnedSkills.forEach(skill => {
                     const skillCard = createSkillCard(skill, true); // true = learned
                     learnedSkillsGridEl.appendChild(skillCard);
                 });
 
                 // Habilidades Disponíveis (para a classe do personagem e não aprendidas)
                 allSkillsData.forEach(skill => {
-                    // Verifica se a habilidade é da classe do personagem e se ele ainda não a aprendeu
-                    // Compara IDs de objetos populados com IDs de strings
                     const isLearned = characterData.learnedSkills.some(learnedSkill => learnedSkill._id === skill._id);
                     if (skill.class.includes(characterData.class) && !isLearned) {
                         const skillCard = createSkillCard(skill, false); // false = not learned
@@ -583,12 +601,13 @@
                 if (isLearned) {
                     skillCard.classList.add('learned');
                 }
-                // Adiciona a classe 'draggable' para habilidades aprendidas que não são ativas
-                // Verifica se a habilidade está no array activeSkills do characterData
                 const isActive = characterData.activeSkills.some(activeSkill => activeSkill._id === skill._id);
                 if (isLearned && !isActive) {
                     skillCard.setAttribute('draggable', 'true');
                     skillCard.dataset.skillId = skill._id;
+                }
+                if (isActive) {
+                    skillCard.classList.add('active'); // Adiciona classe para destaque visual
                 }
 
                 skillCard.innerHTML = `
@@ -602,7 +621,6 @@
                     </button>`}
                 `;
 
-                // Adiciona event listener para o botão "Aprender"
                 if (!isLearned) {
                     const learnButton = skillCard.querySelector('.learn-skill-btn');
                     if (learnButton) {
@@ -620,7 +638,7 @@
                     slot.classList.add('active-skill-slot');
                     slot.dataset.slotIndex = i;
 
-                    const activeSkill = characterData.activeSkills[i]; // Já é o objeto populado
+                    const activeSkill = characterData.activeSkills[i];
                     if (activeSkill) {
                         slot.innerHTML = `
                                 <span class="skill-name">${activeSkill.name}</span>
@@ -639,13 +657,22 @@
             // Função para atualizar os botões de habilidades na seção de batalha
             function updateActiveBattleSkillsUI() {
                 activeBattleSkillsEl.innerHTML = '';
-                characterData.activeSkills.forEach(skill => { // 'skill' já é o objeto populado
+                characterData.activeSkills.forEach(skill => {
                     if (skill) {
                         const skillButton = document.createElement('button');
                         skillButton.classList.add('btn-pirate', 'skill-battle-btn', 'px-6', 'py-3');
                         skillButton.textContent = skill.name;
                         skillButton.dataset.skillId = skill._id;
-                        // TODO: Adicionar lógica de cooldown aqui
+
+                        // Verifica o cooldown da habilidade
+                        const cooldownInfo = characterData.skillCooldowns.find(c => c.skill._id === skill._id);
+                        if (cooldownInfo && cooldownInfo.turnsRemaining > 0) {
+                            skillButton.disabled = true;
+                            skillButton.textContent = `${skill.name} (${cooldownInfo.turnsRemaining})`;
+                        } else {
+                            skillButton.disabled = false;
+                        }
+
                         skillButton.addEventListener('click', () => useSkillInBattle(skill._id));
                         activeBattleSkillsEl.appendChild(skillButton);
                     }
@@ -755,22 +782,37 @@
                 }
             }
 
-            // TODO: Lógica para usar habilidade na batalha
+            // NOVO: Lógica para usar habilidade na batalha
             async function useSkillInBattle(skillId) {
-                alert(`Usando habilidade: ${allSkillsData.find(s => s._id === skillId)?.name}`);
-                // Esta função precisará fazer uma requisição POST para uma nova rota de batalha
-                // que irá processar o uso da habilidade, aplicar seus efeitos e gerenciar cooldowns.
-                // Ex: await fetch('/battle/use-skill', { method: 'POST', body: JSON.stringify({ skillId }) });
-                // Por enquanto, é apenas um alerta.
+                console.log(`Tentando usar habilidade: ${allSkillsData.find(s => s._id === skillId)?.name}`);
+                try {
+                    const response = await fetch('/battle/use-skill', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ skillId })
+                    });
+                    const data = await response.json();
+
+                    if (data.success) {
+                        characterData = data.character; // Atualiza os dados do personagem
+                        updateUI(data.battleState, initialInventoryState, initialSkillsState); // Atualiza a UI da batalha
+                        // Não precisa de alert aqui, o log de batalha já mostra
+                    } else {
+                        alert(data.message); // Exibe mensagem de erro (ex: em cooldown)
+                    }
+                } catch (error) {
+                    console.error('Erro ao usar habilidade na batalha:', error);
+                    alert('Erro ao tentar usar habilidade na batalha.');
+                }
             }
 
 
             // Inicializa a UI com os estados vindos do servidor
             const initialBattleState = JSON.parse('<%- JSON.stringify(battleState || null) %>'); 
             const initialInventoryState = JSON.parse('<%- JSON.stringify(inventoryState || null) %>');
-            const initialSkillsState = JSON.parse('<%- JSON.stringify(skillsState || null) %>'); // NOVO ESTADO
+            const initialSkillsState = JSON.parse('<%- JSON.stringify(skillsState || null) %>');
             
-            updateUI(initialBattleState, initialInventoryState, initialSkillsState); // Chama a função principal de atualização da UI
+            updateUI(initialBattleState, initialInventoryState, initialSkillsState);
 
 
             startBattleBtn.addEventListener('click', async () => {
@@ -783,12 +825,13 @@
                 window.location.href = '/inventory/show';
             });
 
-            // NOVO: Listener para o botão Habilidades
             showSkillsBtn.addEventListener('click', () => {
                 console.log("Botão Habilidades clicado. Redirecionando para /skills/show");
                 window.location.href = '/skills/show';
             });
 
+            // REMOVIDO: Event listener para o botão "Atacar!" original
+            /*
             attackBtn.addEventListener('click', async () => {
                 console.log("Botão Atacar clicado.");
                 const response = await fetch('/battle/attack', {
@@ -798,17 +841,15 @@
                     }
                 });
                 const data = await response.json();
-                // Passa todos os estados para updateUI
                 updateUI(data.battleState, initialInventoryState, initialSkillsState); 
                 
                 if (data.battleState.status === "win") {
-                    currentUserInventory = data.battleState.userInventory; // Atualiza o inventário com o que veio do backend
-                    characterLevelEl.textContent = data.character.level; // Atualiza o nível do personagem na UI
-                    updateInventoryUI(); // Redesenha o inventário
+                    currentUserInventory = data.battleState.userInventory;
+                    characterLevelEl.textContent = data.character.level;
+                    updateInventoryUI();
                     
-                    // TODO: Também atualizar skills se o personagem aprendeu algo ao subir de nível
-                    characterData = data.character; // Garante que characterData está atualizado
-                    updateSkillsUI(); // Atualiza a UI de habilidades
+                    characterData = data.character;
+                    updateSkillsUI();
 
                     setTimeout(() => {
                         console.log("Recarregando página após vitória para atualizar dados.");
@@ -816,6 +857,7 @@
                     }, 1500); 
                 }
             });
+            */
 
             returnHomeFromBattleBtn.addEventListener('click', async () => {
                 console.log("Botão Voltar para Casa (Batalha) clicado. Resetando batalha e redirecionando.");
@@ -836,14 +878,13 @@
                 window.location.href = '/inventory/hide';
             });
 
-            // NOVO: Listener para o botão Voltar da seção de Habilidades
             returnHomeFromSkillsBtn.addEventListener('click', () => {
                 console.log("Botão Voltar para Casa (Habilidades) clicado. Redirecionando para /skills/hide.");
                 window.location.href = '/skills/hide';
             });
 
-            let draggedItem = null; // Para inventário
-            let draggedSkill = null; // Para habilidades
+            let draggedItem = null;
+            // REMOVIDO: let draggedSkill = null; // Não é mais necessário, usando draggedSkillId
 
             inventoryGridEl.addEventListener('dragstart', (e) => {
                 if (e.target.classList.contains('inventory-item')) {
@@ -875,7 +916,13 @@
                     currentUserInventory.splice(itemIndex, 1); 
                     console.log("Item descartado:", itemText, "Novo inventário local:", currentUserInventory);
 
-                    await saveInventoryToBackend(currentUserInventory);
+                    // Assume saveInventoryToBackend exists or needs to be implemented
+                    // For now, it's a placeholder if not defined elsewhere
+                    if (typeof saveInventoryToBackend === 'function') {
+                        await saveInventoryToBackend(currentUserInventory);
+                    } else {
+                        console.warn("saveInventoryToBackend function is not defined.");
+                    }
 
                     updateInventoryUI();
 
