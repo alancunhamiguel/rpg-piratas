@@ -349,6 +349,8 @@
                 <div id="active-battle-skills" class="flex justify-center gap-4 mb-4">
                     <!-- Skills ativas virão aqui -->
                 </div>
+                <!-- NOVO: Botão Fugir da Batalha -->
+                <button id="flee-battle-btn" class="btn-pirate bg-yellow-600 hover:bg-yellow-700 w-full mb-4 hidden">Fugir da Batalha</button>
                 <div id="battle-log" class="bg-gray-700 p-4 rounded-lg text-left h-40 overflow-y-auto">
                     </div>
             </div>
@@ -356,7 +358,7 @@
             <div class="hidden" id="battle-result">
                 <h3 class="text-2xl font-bold mb-4" id="result-message"></h3>
                 <button id="return-home-from-battle-btn" class="btn-pirate w-full mb-2">Voltar para Casa</button>
-                <button id="flee-battle-btn" class="btn-pirate bg-yellow-600 hover:bg-yellow-700 w-full">Fugir da Batalha</button>
+                <!-- O botão de fugir foi movido para fora daqui -->
             </div>
         </div>
 
@@ -431,7 +433,7 @@
             const startBattleBtn = document.getElementById('start-battle-btn');
             const showInventoryBtn = document.getElementById('show-inventory-btn');
             const returnHomeFromBattleBtn = document.getElementById('return-home-from-battle-btn');
-            const fleeBattleBtn = document.getElementById('flee-battle-btn'); // NOVO BOTÃO FUGIR
+            const fleeBattleBtn = document.getElementById('flee-battle-btn'); // REFERÊNCIA AO BOTÃO FUGIR
             const returnHomeFromInventoryBtn = document.getElementById('return-home-from-inventory-btn');
             const returnHomeFromSkillsBtn = document.getElementById('return-home-from-skills-btn');
 
@@ -516,23 +518,21 @@
                     });
                     battleLogEl.scrollTop = battleLogEl.scrollHeight;
 
-                    if (battleState.status === "win") {
-                        resultMessageEl.textContent = "VITÓRIA! Você derrotou o Orc!";
-                        resultMessageEl.classList.remove('text-red-500');
-                        resultMessageEl.classList.add('text-green-500');
-                        battleResultEl.classList.remove('hidden');
-                        activeBattleSkillsEl.classList.add('hidden'); // Esconde botões de skill após vitória/derrota
-                    } else if (battleState.status === "lose") {
-                        resultMessageEl.textContent = "DERROTA! Você foi nocauteado!";
-                        resultMessageEl.classList.remove('text-green-500');
-                        resultMessageEl.classList.add('text-red-500');
-                        battleResultEl.classList.remove('hidden');
-                        activeBattleSkillsEl.classList.add('hidden'); // Esconde botões de skill após vitória/derrota
-                    } else {
-                        battleResultEl.classList.add('hidden');
-                        activeBattleSkillsEl.classList.remove('hidden'); // Mostra botões de skill
-                    }
+                    // Esconde os botões de resultado e mostra os de ação durante a batalha ativa
+                    battleResultEl.classList.add('hidden');
+                    activeBattleSkillsEl.classList.remove('hidden'); // Mostra botões de skill
+                    fleeBattleBtn.classList.remove('hidden'); // MOSTRA O BOTÃO FUGIR
+
                     updateActiveBattleSkillsUI(); // Atualiza botões de habilidade na batalha
+                } else if (battleState && (battleState.status === "win" || battleState.status === "lose")) {
+                    // Se a batalha terminou (vitória ou derrota)
+                    resultMessageEl.textContent = battleState.status === "win" ? "VITÓRIA! Você derrotou o Orc!" : "DERROTA! Você foi nocauteado!";
+                    resultMessageEl.classList.remove('text-red-500', 'text-green-500');
+                    resultMessageEl.classList.add(battleState.status === "win" ? 'text-green-500' : 'text-red-500');
+                    
+                    battleResultEl.classList.remove('hidden'); // Mostra os botões de resultado
+                    activeBattleSkillsEl.classList.add('hidden'); // Esconde botões de skill
+                    fleeBattleBtn.classList.add('hidden'); // ESCONDE O BOTÃO FUGIR
                 } else if (inventoryState) {
                     console.log("Showing Inventory Section. Calling updateInventoryUI.");
                     inventorySection.classList.remove('hidden');
