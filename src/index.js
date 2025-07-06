@@ -314,7 +314,8 @@ app.post('/select-character', isAuthenticated, async (req, res) => {
 
         return res.status(200).json({ success: true, message: "Character selected!", redirectTo: '/home' });
 
-    } catch (error) {
+    }
+    catch (error) {
         console.error("Error selecting character:", error);
         return res.status(500).json({ success: false, message: "Internal error selecting character." });
     }
@@ -538,6 +539,7 @@ app.post("/battle/attack", isAuthenticatedAndCharacterSelected, async (req, res)
             battle.battleLog.push(`Você encontrou uma ${droppedItem}!`);
 
             await activeCharacter.save();
+            req.session.battle = null; // Clear battle state on win
 
             return res.json({
                 message: "Vitória!",
@@ -571,6 +573,7 @@ app.post("/battle/attack", isAuthenticatedAndCharacterSelected, async (req, res)
             battle.battleLog.push(`Você foi derrotado pelo ${battle.enemyName}...`);
 
             await activeCharacter.save();
+            req.session.battle = null; // Clear battle state on lose
 
             return res.json({
                 message: "Derrota!",
@@ -672,6 +675,7 @@ app.post("/battle/use-skill", isAuthenticatedAndCharacterSelected, async (req, r
             battle.battleLog.push(`Você encontrou uma ${droppedItem}!`);
 
             await activeCharacter.save();
+            req.session.battle = null; // Clear battle state on win
 
             return res.json({
                 success: true,
@@ -705,6 +709,7 @@ app.post("/battle/use-skill", isAuthenticatedAndCharacterSelected, async (req, r
             battle.battleLog.push(`Você foi derrotado pelo ${battle.enemyName}...`);
 
             await activeCharacter.save();
+            req.session.battle = null; // Clear battle state on lose
 
             return res.json({
                 success: true,
