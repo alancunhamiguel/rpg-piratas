@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Selecionar Personagem</title>
+    <link rel="stylesheet" href="/style.css"> <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #f0f2f5;
+            margin: 0;
+        }
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 600px;
+            text-align: center;
+        }
+        h2 {
+            margin-bottom: 20px;
+            color: #333;
+        }
+        .character-list {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .character-card {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            width: 250px;
+            background-color: #f9f9f9;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+        .character-card h3 {
+            margin-top: 0;
+            color: #007bff;
+        }
+        .character-card p {
+            margin: 5px 0;
+        }
+        .character-card button {
+            background-color: #28a745;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        .character-card button:hover {
+            background-color: #218838;
+        }
+        .create-new-link {
+            margin-top: 25px;
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Selecione seu Personagem</h2>
+        <div class="character-list">
+            <% if (characters && characters.length > 0) { %>
+                <% characters.forEach(function(character) { %>
+                    <div class="character-card">
+                        <h3><%= character.name %></h3>
+                        <p>Tipo: <%= character.type %></p>
+                        <p>Gênero: <%= character.gender %></p>
+                        <p>Classe: <%= character.class %></p>
+                        <p>Nível: <%= character.level %></p>
+                        <button onclick="selectCharacter('<%= character._id %>')">Jogar com <%= character.name %></button>
+                    </div>
+                <% }); %>
+            <% } else { %>
+                <p>Você ainda não possui personagens.</p>
+            <% } %>
+        </div>
+        <% if (characters && characters.length < 2) { %>
+            <div class="create-new-link">
+                <p>Deseja criar um novo personagem? <a href="/create-character">Criar Personagem</a></p>
+            </div>
+        <% } %>
+    </div>
+
+    <script>
+        async function selectCharacter(characterId) {
+            try {
+                const response = await fetch('/select-character', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ characterId: characterId })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    alert(data.message); // Personagem selecionado com sucesso
+                    if (data.redirectTo) {
+                        window.location.href = data.redirectTo; // Redireciona para a home
+                    }
+                } else {
+                    alert(data.message); // Exibe o erro
+                }
+            } catch (error) {
+                console.error('Erro ao selecionar personagem:', error);
+                alert('Ocorreu um erro inesperado ao selecionar personagem.');
+            }
+        }
+    </script>
+</body>
+</html>

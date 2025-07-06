@@ -99,24 +99,92 @@
         .signup-link a:hover {
             text-decoration: underline;
         }
+
+        /* Mensagens de erro/sucesso */
+        .message {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 5px;
+            font-weight: bold;
+            display: none; /* Escondido por padrão */
+        }
+        .message.success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .message.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
     </style>
 </head>
 <body>
 
     <div class="form-container">
         <h2>RPG GAME</h2>
-        <form action="/login" method="post">
-            <div class="form-group">
+        <form id="loginForm"> <div class="form-group">
                 <label for="name">Nome de Usuário:</label>
                 <input type="text" id="name" name="username" placeholder="Digite seu nome de usuário" required autocomplete="off">
             </div>
             <div class="form-group">
-                <label for="password">Senha:</label> <input type="password" name="password" id="password" placeholder="Digite sua senha" required>
+                <label for="password">Senha:</label>
+                <input type="password" name="password" id="password" placeholder="Digite sua senha" required>
             </div>
             <button type="submit" class="submit-btn">Entrar</button>
-        </form>
+            <p id="loginMessage" class="message"></p> </form>
         <p class="signup-link">Não possui uma conta? <a href="/signup">Cadastre-se</a></p>
     </div>
+
+    <script>
+        document.getElementById('loginForm').addEventListener('submit', async function(event) {
+            event.preventDefault(); // Impede o envio padrão do formulário
+
+            const username = this.elements.username.value;
+            const password = this.elements.password.value;
+
+            const messageElement = document.getElementById('loginMessage');
+            messageElement.textContent = ''; // Limpa mensagens anteriores
+            messageElement.style.display = 'none'; // Esconde a mensagem
+            messageElement.classList.remove('success', 'error'); // Remove classes de estilo
+
+            try {
+                const response = await fetch('/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+
+                const data = await response.json(); // Analisa a resposta JSON do servidor
+
+                if (data.success) {
+                    messageElement.textContent = data.message;
+                    messageElement.classList.add('success');
+                    messageElement.style.display = 'block';
+
+                    // Redireciona com base na resposta do servidor
+                    if (data.redirectTo) {
+                        window.location.href = data.redirectTo;
+                    } else {
+                        // Fallback se redirectTo não estiver definido (caso improvável com o novo fluxo)
+                        window.location.href = '/home'; // Pode ser ajustado conforme a lógica padrão
+                    }
+                } else {
+                    messageElement.textContent = data.message;
+                    messageElement.classList.add('error');
+                    messageElement.style.display = 'block';
+                }
+            } catch (error) {
+                console.error('Erro de rede ou servidor:', error);
+                messageElement.textContent = 'Erro ao conectar ao servidor. Tente novamente.';
+                messageElement.classList.add('error');
+                messageElement.style.display = 'block';
+            }
+        });
+    </script>
 
 </body>
 </html>
