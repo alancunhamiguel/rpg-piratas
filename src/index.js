@@ -954,6 +954,62 @@ app.post("/skills/remove-active", isAuthenticatedAndCharacterSelected, async (re
     }
 });
 
+// ----------------------------------------------------------------------
+// ROTAS DE STATUS E DISTRIBUIÇÃO DE PONTOS
+// ----------------------------------------------------------------------
+
+// Rota para exibir a página de status
+app.get("/status", isAuthenticatedAndCharacterSelected, async (req, res) => {
+    try {
+        const activeCharacter = await Character.findById(req.session.activeCharacterId);
+        if (!activeCharacter) {
+            return res.redirect('/select-character');
+        }
+        res.render("status", { character: activeCharacter });
+    } catch (error) {
+        console.error("Erro ao carregar página de status:", error);
+        res.redirect('/home');
+    }
+});
+
+// Rota para distribuir pontos de habilidade
+app.post("/status/distribute-points", isAuthenticatedAndCharacterSelected, async (req, res) => {
+    const { stat, points } = req.body;
+
+    try {
+        const activeCharacter = await Character.findById(req.session.activeCharacterId);
+        if (!activeCharacter) {
+            return res.status(404).json({ success: false, message: "Personagem não encontrado." });
+        }
+
+        const pointsToDistribute = parseInt(points, 10);
+
+        if (isNaN(pointsToDistribute) || pointsToDistribute <= 0) {
+            return res.status(400).json({ success: false, message: "Número de pontos inválido." });
+        }
+
+        if (activeCharacter.skillPoints < pointsToDistribute) {
+            return res.status(400).json({ success: false, message: "Pontos de habilidade insuficientes." });
+        }
+
+        // Verifica se o stat é válido
+        if (!['strength', 'defense', 'agility', 'intelligence'].includes(stat)) {
+            return res.status(400).json({ success: false, message: "Atributo inválido." });
+        }
+
+        activeCharacter.stats[stat] += pointsToDistribute;
+        activeCharacter.skillPoints -= pointsToDistribute;
+
+        await activeCharacter.save();
+
+        return res.status(200).json({ success: true, message: `Pontos de ${stat} distribuídos!`, character: activeCharacter });
+
+    } catch (error) {
+        console.error("Erro ao distribuir pontos de habilidade:", error);
+        res.status(500).json({ success: false, message: "Erro interno ao distribuir pontos de habilidade." });
+    }
+});
+
 
 // ----------------------------------------------------------------------
 // Socket.IO Logic

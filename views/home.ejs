@@ -299,7 +299,7 @@
 </head>
 <body class="flex flex-col items-center justify-center min-h-screen p-4">
     <div id="main-content-wrapper" class="flex flex-col w-full max-w-2xl">
-        <div id="home-section" class="container w-full p-8 text-center <%= battleState || inventoryState || skillsState ? 'hidden' : '' %>">
+        <div id="home-section" class="container w-full p-8 text-center <%= battleState || inventoryState || skillsState || statusState ? 'hidden' : '' %>">
             <h1 class="text-4xl font-bold mb-6 text-yellow-400">Bem-vindo, Capitão <%= userName %>!</h1>
             
             <div class="flex flex-col items-center mb-8">
@@ -315,6 +315,7 @@
                 <button id="start-battle-btn" class="btn-pirate">Batalha Naval</button>
                 <button class="btn-pirate">Gerenciar Tripulação</button>
                 <button id="show-inventory-btn" class="btn-pirate">Inventário</button>
+                <button id="show-status-btn" class="btn-pirate">Status</button> <!-- NOVO BOTÃO DE STATUS -->
             </div>
 
             <div class="mt-8">
@@ -428,11 +429,14 @@
             const battleSection = document.getElementById('battle-section');
             const inventorySection = document.getElementById('inventory-section');
             const skillsSection = document.getElementById('skills-section');
+            const statusSection = document.getElementById('status-section'); // NOVO: Referência à seção de status
 
             const showSkillsBtn = document.getElementById('show-skills-btn');
             const startBattleBtn = document.getElementById('start-battle-btn');
             const showInventoryBtn = document.getElementById('show-inventory-btn');
-            const returnHomeFromBattleBtn = document.getElementById('return-home-from-battle-btn'); // Mantido para referência, mas não mais clicável
+            const showStatusBtn = document.getElementById('show-status-btn'); // NOVO: Referência ao botão de status
+
+            const returnHomeFromBattleBtn = document.getElementById('return-home-from-battle-btn');
             const fleeBattleBtn = document.getElementById('flee-battle-btn');
             const returnHomeFromInventoryBtn = document.getElementById('return-home-from-inventory-btn');
             const returnHomeFromSkillsBtn = document.getElementById('return-home-from-skills-btn');
@@ -488,14 +492,15 @@
             const INVENTORY_LIMIT = 20;
             const ACTIVE_SKILLS_LIMIT = 2;
 
-            // Função para atualizar a interface da batalha E gerenciar a visibilidade das seções
-            function updateUI(battleState, inventoryState, skillsState) {
-                console.log("updateUI called. Battle State:", battleState, "Inventory State:", inventoryState, "Skills State:", skillsState);
+            // Função para atualizar a interface E gerenciar a visibilidade das seções
+            function updateUI(battleState, inventoryState, skillsState, statusState) {
+                console.log("updateUI called. Battle State:", battleState, "Inventory State:", inventoryState, "Skills State:", skillsState, "Status State:", statusState);
                 
                 homeSection.classList.add('hidden');
                 battleSection.classList.add('hidden');
                 inventorySection.classList.add('hidden');
                 skillsSection.classList.add('hidden');
+                if (statusSection) statusSection.classList.add('hidden'); // Esconde a seção de status se ela existir
 
                 if (battleState && battleState.status === "active") {
                     console.log("Showing Battle Section.");
@@ -516,23 +521,20 @@
                     });
                     battleLogEl.scrollTop = battleLogEl.scrollHeight;
 
-                    // Esconde os botões de resultado e mostra os de ação durante a batalha ativa
                     battleResultEl.classList.add('hidden');
                     activeBattleSkillsEl.classList.remove('hidden');
                     fleeBattleBtn.classList.remove('hidden');
 
                     updateActiveBattleSkillsUI();
                 } else if (battleState && (battleState.status === "win" || battleState.status === "lose")) {
-                    // Se a batalha terminou (vitória ou derrota)
                     resultMessageEl.textContent = battleState.status === "win" ? "VITÓRIA! Você derrotou o Orc!" : "DERROTA! Você foi nocauteado!";
                     resultMessageEl.classList.remove('text-red-500', 'text-green-500');
                     resultMessageEl.classList.add(battleState.status === "win" ? 'text-green-500' : 'text-red-500');
                     
-                    // Exibe itens dropados se for vitória
                     if (battleState.status === "win" && battleState.battleLog.length > 0) {
                         const droppedItemLog = battleState.battleLog.find(log => log.includes("Você encontrou uma"));
                         if (droppedItemLog) {
-                            resultMessageEl.innerHTML += `<br><span class="text-yellow-300">${droppedItemLog}</span>`; // Adiciona ao final da mensagem de vitória
+                            resultMessageEl.innerHTML += `<br><span class="text-yellow-300">${droppedItemLog}</span>`;
                         }
                     }
 
@@ -540,15 +542,13 @@
                     activeBattleSkillsEl.classList.add('hidden');
                     fleeBattleBtn.classList.add('hidden');
 
-                    // Garante que a seção de batalha esteja visível para mostrar os resultados
                     battleSection.classList.remove('hidden');
-                    homeSection.classList.add('hidden'); // Mantém a home escondida
+                    homeSection.classList.add('hidden');
 
-                    // Redireciona para a página inicial após um pequeno atraso
                     setTimeout(() => {
                         console.log("Redirecionando para a página inicial após o resultado da batalha.");
                         window.location.href = '/home';
-                    }, 3000); // Redireciona após 3 segundos
+                    }, 3000);
                 } else if (inventoryState) {
                     console.log("Showing Inventory Section. Calling updateInventoryUI.");
                     inventorySection.classList.remove('hidden');
@@ -557,6 +557,10 @@
                     console.log("Showing Skills Section. Calling updateSkillsUI.");
                     skillsSection.classList.remove('hidden');
                     updateSkillsUI();
+                } else if (statusState) { // NOVO: Condição para exibir a seção de status
+                    console.log("Showing Status Section.");
+                    // A seção de status será renderizada por status.ejs, então não precisamos manipulá-la aqui diretamente.
+                    // Apenas garantimos que as outras seções estejam escondidas.
                 }
                 else {
                     console.log("Showing Home Section.");
@@ -592,19 +596,17 @@
             function updateSkillsUI() {
                 learnedSkillsGridEl.innerHTML = '';
                 availableSkillsGridEl.innerHTML = '';
-                updateActiveSkillsSlotsUI(); // Atualiza os slots de habilidades ativas
+                updateActiveSkillsSlotsUI();
 
-                // Habilidades Aprendidas
                 characterData.learnedSkills.forEach(skill => {
-                    const skillCard = createSkillCard(skill, true); // true = learned
+                    const skillCard = createSkillCard(skill, true);
                     learnedSkillsGridEl.appendChild(skillCard);
                 });
 
-                // Habilidades Disponíveis (para a classe do personagem e não aprendidas)
                 allSkillsData.forEach(skill => {
                     const isLearned = characterData.learnedSkills.some(learnedSkill => learnedSkill._id === skill._id);
                     if (skill.class.includes(characterData.class) && !isLearned) {
-                        const skillCard = createSkillCard(skill, false); // false = not learned
+                        const skillCard = createSkillCard(skill, false);
                         availableSkillsGridEl.appendChild(skillCard);
                     }
                 });
@@ -622,7 +624,7 @@
                     skillCard.dataset.skillId = skill._id;
                 }
                 if (isActive) {
-                    skillCard.classList.add('active'); // Adiciona classe para destaque visual
+                    skillCard.classList.add('active');
                 }
 
                 skillCard.innerHTML = `
@@ -645,7 +647,6 @@
                 return skillCard;
             }
 
-            // Função para atualizar os slots de habilidades ativas
             function updateActiveSkillsSlotsUI() {
                 activeSkillsSlotsEl.innerHTML = '';
                 for (let i = 0; i < ACTIVE_SKILLS_LIMIT; i++) {
@@ -669,10 +670,8 @@
                 addDragAndDropListenersToActiveSlots();
             }
 
-            // Função para atualizar os botões de habilidades na seção de batalha
             function updateActiveBattleSkillsUI() {
                 activeBattleSkillsEl.innerHTML = '';
-                // Adiciona o botão de ataque básico
                 const basicAttackSkill = allSkillsData.find(s => s.name === "Atacar");
                 if (basicAttackSkill) {
                     const attackButton = document.createElement('button');
@@ -683,7 +682,6 @@
                     activeBattleSkillsEl.appendChild(attackButton);
                 }
 
-                // Adiciona os botões das habilidades ativas selecionadas
                 characterData.activeSkills.forEach(skill => {
                     if (skill && skill.name !== "Atacar") {
                         const skillButton = document.createElement('button');
@@ -691,7 +689,6 @@
                         skillButton.textContent = skill.name;
                         skillButton.dataset.skillId = skill._id;
 
-                        // Verifica o cooldown da habilidade
                         const cooldownInfo = characterData.skillCooldowns.find(c => c.skill && c.skill._id === skill._id);
                         if (cooldownInfo && cooldownInfo.turnsRemaining > 0) {
                             skillButton.disabled = true;
@@ -706,7 +703,6 @@
                 });
             }
 
-            // --- Lógica de Drag and Drop para Habilidades Ativas ---
             let draggedSkillId = null;
 
             learnedSkillsGridEl.addEventListener('dragstart', (e) => {
@@ -743,7 +739,6 @@
                 });
             }
 
-            // --- Funções de Requisição ao Backend para Habilidades ---
             async function learnSkill(skillId) {
                 try {
                     const response = await fetch('/skills/learn', {
@@ -821,7 +816,7 @@
 
                     if (data.success) {
                         characterData = data.character;
-                        updateUI(data.battleState, initialInventoryState, initialSkillsState);
+                        updateUI(data.battleState, initialInventoryState, initialSkillsState, initialStatusState); // Passa statusState
                     } else {
                         alert(data.message);
                     }
@@ -836,8 +831,9 @@
             const initialBattleState = JSON.parse('<%- JSON.stringify(battleState || null) %>'); 
             const initialInventoryState = JSON.parse('<%- JSON.stringify(inventoryState || null) %>');
             const initialSkillsState = JSON.parse('<%- JSON.stringify(skillsState || null) %>');
+            const initialStatusState = JSON.parse('<%- JSON.stringify(statusState || null) %>'); // NOVO: Estado para a seção de status
             
-            updateUI(initialBattleState, initialInventoryState, initialSkillsState);
+            updateUI(initialBattleState, initialInventoryState, initialSkillsState, initialStatusState);
 
 
             startBattleBtn.addEventListener('click', async () => {
@@ -855,21 +851,12 @@
                 window.location.href = '/skills/show';
             });
 
-            // O botão de "Voltar para Casa" da tela de resultado da batalha foi removido do HTML
-            // e a lógica de redirecionamento agora está no setTimeout da função updateUI.
-            // returnHomeFromBattleBtn.addEventListener('click', async () => {
-            //     console.log("Botão Voltar para Casa (Batalha) clicado. Resetando batalha e redirecionando.");
-            //     const response = await fetch('/battle/reset', {
-            //         method: 'POST',
-            //         headers: {
-            //             'Content-Type': 'application/json'
-            //         }
-            //     });
-            //     const data = await response.json();
-            //     if (data.message === "Batalha resetada.") {
-            //         window.location.href = '/home'; 
-            //     }
-            // });
+            // NOVO: Listener para o botão Status
+            showStatusBtn.addEventListener('click', () => {
+                console.log("Botão Status clicado. Redirecionando para /status");
+                window.location.href = '/status';
+            });
+
 
             fleeBattleBtn.addEventListener('click', async () => {
                 console.log("Botão Fugir da Batalha clicado.");
