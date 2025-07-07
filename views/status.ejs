@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RPG de Piratas - Status</title>
+    <title>RPG de Piratas - Status do Personagem</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
     <style>
@@ -29,14 +29,13 @@
             background-color: #c53030;
         }
         .stat-item {
+            background-color: #4a5568;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 10px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 10px 0;
-            border-bottom: 1px solid #4a5568;
-        }
-        .stat-item:last-child {
-            border-bottom: none;
         }
         .stat-name {
             font-weight: bold;
@@ -46,7 +45,7 @@
             color: #cbd5e0;
         }
         .distribute-btn {
-            background-color: #48bb78; /* Verde para distribuir */
+            background-color: #4299e1;
             color: white;
             padding: 5px 10px;
             border-radius: 5px;
@@ -55,7 +54,7 @@
             transition: background-color 0.2s;
         }
         .distribute-btn:hover:not(:disabled) {
-            background-color: #38a169;
+            background-color: #3182ce;
         }
         .distribute-btn:disabled {
             background-color: #718096;
@@ -65,36 +64,37 @@
     </style>
 </head>
 <body class="flex flex-col items-center justify-center min-h-screen p-4">
-    <div class="container w-full max-w-xl p-8 text-center">
-        <h1 class="text-4xl font-bold mb-6 text-yellow-400">Status do Personagem</h1>
+    <div class="container w-full max-w-2xl p-8 text-center">
+        <h1 class="text-4xl font-bold mb-6 text-yellow-400">Status de <%= character.name %></h1>
         
-        <div class="mb-8">
+        <div class="flex flex-col items-center mb-8">
             <p class="text-2xl font-semibold text-green-400">Nível: <span class="text-white" id="character-level"><%= character.level %></span></p>
-            <p class="text-lg text-gray-300">Pontos de Habilidade Disponíveis: <span class="text-white text-xl font-bold" id="skill-points"><%= character.skillPoints %></span></p>
+            <p class="text-lg text-gray-300">Classe: <span class="text-white"><%= character.class %></span></p>
+            <p class="text-lg text-blue-300">Pontos de Habilidade Disponíveis: <span class="text-white" id="skill-points"><%= character.skillPoints %></span></p>
         </div>
 
-        <div class="text-left mb-8">
-            <h3 class="text-xl font-semibold mb-4 text-blue-300">Atributos:</h3>
-            <div id="stats-list">
+        <div class="mb-8">
+            <h2 class="text-2xl font-bold mb-4 text-blue-300">Atributos</h2>
+            <div id="attributes-list" class="text-left">
                 <div class="stat-item">
                     <span class="stat-name">Força:</span>
                     <span class="stat-value" id="stat-strength"><%= character.stats.strength %></span>
-                    <button class="distribute-btn" data-stat="strength" data-points="1" <%= character.skillPoints <= 0 ? 'disabled' : '' %>>+1</button>
+                    <button class="distribute-btn" data-stat="strength" <%= character.skillPoints <= 0 ? 'disabled' : '' %>>Distribuir (+1)</button>
                 </div>
                 <div class="stat-item">
                     <span class="stat-name">Defesa:</span>
                     <span class="stat-value" id="stat-defense"><%= character.stats.defense %></span>
-                    <button class="distribute-btn" data-stat="defense" data-points="1" <%= character.skillPoints <= 0 ? 'disabled' : '' %>>+1</button>
+                    <button class="distribute-btn" data-stat="defense" <%= character.skillPoints <= 0 ? 'disabled' : '' %>>Distribuir (+1)</button>
                 </div>
                 <div class="stat-item">
                     <span class="stat-name">Agilidade:</span>
                     <span class="stat-value" id="stat-agility"><%= character.stats.agility %></span>
-                    <button class="distribute-btn" data-stat="agility" data-points="1" <%= character.skillPoints <= 0 ? 'disabled' : '' %>>+1</button>
+                    <button class="distribute-btn" data-stat="agility" <%= character.skillPoints <= 0 ? 'disabled' : '' %>>Distribuir (+1)</button>
                 </div>
                 <div class="stat-item">
                     <span class="stat-name">Inteligência:</span>
                     <span class="stat-value" id="stat-intelligence"><%= character.stats.intelligence %></span>
-                    <button class="distribute-btn" data-stat="intelligence" data-points="1" <%= character.skillPoints <= 0 ? 'disabled' : '' %>>+1</button>
+                    <button class="distribute-btn" data-stat="intelligence" <%= character.skillPoints <= 0 ? 'disabled' : '' %>>Distribuir (+1)</button>
                 </div>
             </div>
         </div>
@@ -105,88 +105,53 @@
     </div>
 
     <script>
-        console.log("status.ejs: Script iniciado.");
-        let characterData;
-        try {
-            // Tenta analisar os dados do personagem
-            characterData = JSON.parse('<%- JSON.stringify(character) %>');
-            console.log("status.ejs: characterData carregado com sucesso:", characterData);
-        } catch (error) {
-            console.error("status.ejs: Erro ao analisar characterData:", error);
-            console.error("status.ejs: Conteúdo bruto de character (se disponível):", '<%- JSON.stringify(character) %>');
-            // Se houver um erro, defina characterData para um objeto vazio ou padrão para evitar erros subsequentes
-            characterData = { level: 0, skillPoints: 0, stats: { strength: 0, defense: 0, agility: 0, intelligence: 0 } };
-            alert("Ocorreu um erro ao carregar os dados do personagem. Por favor, recarregue a página.");
-        }
-
         document.addEventListener('DOMContentLoaded', () => {
-            console.log("status.ejs: DOMContentLoaded disparado.");
-
             const skillPointsEl = document.getElementById('skill-points');
-            const statsListEl = document.getElementById('stats-list');
+            const distributeButtons = document.querySelectorAll('.distribute-btn');
             const returnHomeBtn = document.getElementById('return-home-from-status-btn');
 
-            function updateStatsUI() {
-                console.log("status.ejs: Chamando updateStatsUI com characterData:", characterData);
-                if (!characterData || !characterData.stats) {
-                    console.error("status.ejs: characterData ou characterData.stats é inválido em updateStatsUI.");
-                    return; // Sai da função se os dados forem inválidos
-                }
-                
-                skillPointsEl.textContent = characterData.skillPoints;
-                document.getElementById('stat-strength').textContent = characterData.stats.strength;
-                document.getElementById('stat-defense').textContent = characterData.stats.defense;
-                document.getElementById('stat-agility').textContent = characterData.stats.agility;
-                document.getElementById('stat-intelligence').textContent = characterData.stats.intelligence;
+            let currentSkillPoints = parseInt(skillPointsEl.textContent);
 
-                // Habilita/desabilita botões de distribuição
-                document.querySelectorAll('.distribute-btn').forEach(button => {
-                    if (characterData.skillPoints <= 0) {
-                        button.disabled = true;
-                    } else {
-                        button.disabled = false;
+            distributeButtons.forEach(button => {
+                button.addEventListener('click', async (e) => {
+                    const stat = e.target.dataset.stat;
+                    if (currentSkillPoints <= 0) {
+                        alert('Você não tem pontos de habilidade para distribuir!');
+                        return;
+                    }
+
+                    try {
+                        const response = await fetch('/status/distribute-points', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ stat, points: 1 })
+                        });
+                        const data = await response.json();
+
+                        if (data.success) {
+                            alert(data.message);
+                            // Atualiza os valores na UI
+                            document.getElementById(`stat-${stat}`).textContent = data.character.stats[stat];
+                            skillPointsEl.textContent = data.character.skillPoints;
+                            currentSkillPoints = data.character.skillPoints;
+
+                            // Desabilita botões se não houver mais pontos
+                            if (currentSkillPoints <= 0) {
+                                distributeButtons.forEach(btn => btn.disabled = true);
+                            }
+                        } else {
+                            alert(data.message);
+                        }
+                    } catch (error) {
+                        console.error('Erro ao distribuir pontos:', error);
+                        alert('Erro ao tentar distribuir pontos de habilidade.');
                     }
                 });
-            }
-
-            statsListEl.addEventListener('click', async (event) => {
-                const target = event.target;
-                if (target.classList.contains('distribute-btn')) {
-                    const stat = target.dataset.stat;
-                    const points = parseInt(target.dataset.points);
-
-                    if (characterData.skillPoints >= points) {
-                        try {
-                            const response = await fetch('/status/distribute-points', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ stat, points })
-                            });
-                            const data = await response.json();
-
-                            if (data.success) {
-                                characterData = data.character; // Atualiza os dados do personagem
-                                updateStatsUI(); // Atualiza a UI
-                                alert(data.message);
-                            } else {
-                                alert(data.message);
-                            }
-                        } catch (error) {
-                            console.error('Erro ao distribuir pontos:', error);
-                            alert('Erro ao tentar distribuir pontos de habilidade.');
-                        }
-                    } else {
-                        alert('Pontos de habilidade insuficientes!');
-                    }
-                }
             });
 
-            // Redireciona para /status/hide para limpar o estado da sessão
             returnHomeBtn.addEventListener('click', () => {
-                window.location.href = '/status/hide'; 
+                window.location.href = '/home'; // Redireciona para a página inicial
             });
-
-            updateStatsUI(); // Inicializa a UI com os dados do personagem
         });
     </script>
 </body>
