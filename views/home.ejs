@@ -329,7 +329,7 @@
                 
                 <p class="text-lg text-orange-300">Fruta Ativa: <span class="text-white" id="character-active-fruit"><%= character.activeFruit ? character.activeFruit : 'Nenhuma' %></span></p>
                 
-                <p class="text-lg text-red-400">Status Admin: <span class="text-white" id="user-is-admin"><%= user.isAdmin ? 'Sim' : 'Não' %></span></p> <% /* NOVO: Exibe o status isAdmin do usuário logado */ %>
+                <% /* REMOVIDO: <p class="text-lg text-red-400">Status Admin: <span class="text-white" id="user-is-admin"><%= user.isAdmin ? 'Sim' : 'Não' %></span></p> */ %>
             </div>
 
             <p class="text-lg mb-8">Sua aventura pelos sete mares começa agora! Prepare-se para desafios, tesouros e glória!</p>
@@ -480,8 +480,7 @@
             // NOVO: Referências para VIP e Fruta Ativa
             const characterVipEl = document.getElementById('character-vip');
             const characterActiveFruitEl = document.getElementById('character-active-fruit');
-            // NOVO: Referência para o status Admin do usuário
-            const userIsAdminEl = document.getElementById('user-is-admin');
+            // REMOVIDO: const userIsAdminEl = document.getElementById('user-is-admin');
             
             const inventoryGridEl = document.getElementById('inventory-grid');
             const discardAreaEl = document.getElementById('discard-area');
@@ -621,8 +620,7 @@
                     characterCashEl.textContent = characterData.cash;
                     characterVipEl.textContent = characterData.vip ? 'Ativado' : 'Desativado';
                     characterActiveFruitEl.textContent = characterData.activeFruit ? characterData.activeFruit : 'Nenhuma';
-                    // NOVO: Atualiza o status Admin do usuário
-                    userIsAdminEl.textContent = userData.isAdmin ? 'Sim' : 'Não';
+                    // REMOVIDO: userIsAdminEl.textContent = userData.isAdmin ? 'Sim' : 'Não';
                 }
             }
 
@@ -956,7 +954,6 @@
 
             discardAreaEl.addEventListener('dragover', (e) => {
                 e.preventDefault();
-                e.dataTransfer.dropEffect = 'move';
                 discardAreaEl.classList.add('drag-over');
             });
 
