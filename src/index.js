@@ -95,16 +95,16 @@ const isAuthenticatedAndCharacterSelected = async (req, res, next) => {
 // AUTHENTICATION AND REGISTRATION ROUTES
 // ----------------------------------------------------------------------
 
-// Route for the login/registration page (initial page)
+// Rota para a página de login/registro (página inicial)
 app.get("/", (req, res) => {
-    // If the user is already logged in, redirect to character selection
+    // Se o usuário já estiver logado, redireciona para a seleção de personagem
     if (req.session.userId) {
-        return res.redirect("/select-character"); // New flow
+        return res.redirect("/select-character"); // Novo fluxo
     }
     res.render("login");
 });
 
-// Route for the signup page
+// Rota para a página de registro
 app.get("/signup", (req, res) => {
     res.render("signup");
 });
@@ -116,37 +116,32 @@ app.post("/signup", async (req, res) => {
         password: req.body.password,
     };
 
+    // NOVO: Lista de nomes de usuário proibidos para evitar novos admins
+    const forbiddenUsernames = ['admin', 'adm', 'administrator', 'root', 'sistema', 'moderador'];
+    if (forbiddenUsernames.includes(data.name.toLowerCase())) {
+        return res.status(400).json({ success: false, message: "Este nome de usuário é restrito. Por favor, escolha outro." });
+    }
+
     try {
         const existingUser = await collection.findOne({ name: data.name });
         if (existingUser) {
-            return res.status(409).json({ success: false, message: "Try another Username. This one already exists :(" });
+            return res.status(409).json({ success: false, message: "Tente outro nome de usuário. Este já existe :(" });
         } else {
             const saltRounds = 10;
             const hashedPassword = await bcrypt.hash(data.password, saltRounds);
             data.password = hashedPassword;
 
-            // Insert the new user (without characters yet)
+            // Insere o novo usuário (sem personagens ainda)
             const newUser = await collection.create(data);
-            console.log("New user registered:", newUser.name);
-
-            // Add "Atacar" and "Defender" as default learned skills for new characters
-            const defaultAttackSkill = await Skill.findOne({ name: "Atacar", class: data.characterClass, requiredLevel: 1 });
-            const defaultDefenseSkill = await Skill.findOne({ name: "Defender", class: data.characterClass, requiredLevel: 1 });
-
-            // Note: `data.characterClass` is not available here.
-            // These default skills should be added when the character is created,
-            // not when the user is created.
-            // For now, let's ensure they are added in the /create-character route.
-            // If you want them added on user creation, you'd need a default character
-            // created at the same time, or pass the class here.
+            console.log("Novo usuário registrado:", newUser.name);
 
             await newUser.save();
 
-            return res.status(200).json({ success: true, message: "User registered successfully!", redirectTo: '/create-character' });
+            return res.status(200).json({ success: true, message: "Usuário registrado com sucesso!", redirectTo: '/create-character' });
         }
     } catch (error) {
-        console.error("Error registering user:", error);
-        return res.status(500).json({ success: false, message: "Error registering user. Please try again." });
+        console.error("Erro ao registrar usuário:", error);
+        return res.status(500).json({ success: false, message: "Erro ao registrar usuário. Por favor, tente novamente." });
     }
 });
 
@@ -157,12 +152,12 @@ app.post("/login", async (req, res) => {
         const user = await collection.findOne({ name: username });
 
         if (!user) {
-            return res.json({ success: false, message: "Username not found." });
+            return res.json({ success: false, message: "Nome de usuário não encontrado." });
         }
 
         const isPasswordMatch = await bcrypt.compare(password, user.password);
         if (!isPasswordMatch) {
-            return res.json({ success: false, message: "Incorrect password." });
+            return res.json({ success: false, message: "Senha incorreta." });
         }
 
         // Autenticação bem-sucedida, armazena o ID do usuário na sessão
@@ -247,8 +242,10 @@ app.post('/create-character', isAuthenticated, async (req, res) => {
             type: type,
             gender: gender,
             class: characterClass,
-            gold: 0, // NOVO: Inicializa gold
-            cash: 0  // NOVO: Inicializa cash
+            gold: 0,
+            cash: 0,
+            vip: false, // NOVO: Inicializa vip como false
+            activeFruit: null // NOVO: Inicializa activeFruit como null
         });
 
         // Adiciona "Atacar" e "Defender" como habilidades aprendidas padrão para novos personagens
@@ -539,7 +536,7 @@ app.post("/battle/attack", isAuthenticatedAndCharacterSelected, async (req, res)
                 battle.battleLog.push(`Você aprendeu uma nova habilidade: ${newSkill.name}!`);
             });
 
-            const goldGained = 10; // NOVO: Ouro ganho na vitória
+            const goldGained = 10;
             activeCharacter.gold += goldGained;
             battle.battleLog.push(`Você encontrou ${goldGained} de Ouro!`);
 
@@ -602,7 +599,7 @@ app.post("/battle/attack", isAuthenticatedAndCharacterSelected, async (req, res)
     }
 });
 
-// NOVO: Rota para usar uma habilidade na batalha
+// Rota para usar uma habilidade na batalha
 app.post("/battle/use-skill", isAuthenticatedAndCharacterSelected, async (req, res) => {
     const { skillId } = req.body;
     const battle = req.session.battle;
@@ -678,7 +675,7 @@ app.post("/battle/use-skill", isAuthenticatedAndCharacterSelected, async (req, r
                 battle.battleLog.push(`Você aprendeu uma nova habilidade: ${newSkill.name}!`);
             });
 
-            const goldGained = 10; // NOVO: Ouro ganho na vitória
+            const goldGained = 10;
             activeCharacter.gold += goldGained;
             battle.battleLog.push(`Você encontrou ${goldGained} de Ouro!`);
 
@@ -751,7 +748,7 @@ app.post("/battle/reset", isAuthenticatedAndCharacterSelected, (req, res) => {
     res.json({ message: "Batalha resetada." });
 });
 
-// NOVO: Rota para fugir da batalha
+// Rota para fugir da batalha
 app.post("/battle/flee", isAuthenticatedAndCharacterSelected, async (req, res) => {
     console.log("Rota /battle/flee acessada.");
     try {
@@ -1040,8 +1037,29 @@ app.post("/status/distribute-points", isAuthenticatedAndCharacterSelected, async
 
 
 // ----------------------------------------------------------------------
-// Socket.IO Logic
+// Socket.IO Logic (Chat)
 // ----------------------------------------------------------------------
+
+// NOVO: Objeto para controlar o rate limit por usuário
+const userMessageTimestamps = {}; // { userId: [timestamp1, timestamp2, ...], ... }
+const MESSAGE_LIMIT = 5; // Máximo de 5 mensagens
+const TIME_WINDOW_MS = 60 * 1000; // Em 1 minuto (60 segundos)
+
+// NOVO: Limpar chat a cada 30 minutos
+const CHAT_CLEAR_INTERVAL_MS = 30 * 60 * 1000; // 30 minutos
+
+setInterval(async () => {
+    try {
+        await ChatMessage.deleteMany({});
+        console.log('Chat limpo automaticamente.');
+        // Envia uma mensagem de sistema para todos os clientes
+        io.emit('chat message', { sender: 'SISTEMA', message: 'O chat foi limpo automaticamente para manter a organização.', isSystem: true });
+    } catch (error) {
+        console.error("Erro ao limpar o chat:", error);
+    }
+}, CHAT_CLEAR_INTERVAL_MS);
+
+
 io.on('connection', async (socket) => {
     console.log('Um usuário conectado ao chat:', socket.id);
 
@@ -1052,7 +1070,13 @@ io.on('connection', async (socket) => {
                                         .limit(50);
 
         messages.forEach(chatMsg => {
-            socket.emit('chat message', `${chatMsg.sender}: ${chatMsg.message}`);
+            // NOVO: Envia um objeto com mais informações
+            socket.emit('chat message', {
+                sender: chatMsg.sender,
+                message: chatMsg.message,
+                isAdmin: chatMsg.isAdmin, // Inclui se o remetente é admin
+                isSystem: chatMsg.isSystem // Inclui se é mensagem de sistema
+            });
         });
         console.log(`Histórico de ${messages.length} mensagens carregado para ${socket.id}`);
 
@@ -1061,27 +1085,53 @@ io.on('connection', async (socket) => {
     }
 
     // Escuta por mensagens de chat de um cliente
-    socket.on('chat message', async (fullMsg) => {
-        console.log('Mensagem recebida do cliente:', fullMsg);
+    socket.on('chat message', async (messageContent) => {
+        // NOVO: Acessa o userId da sessão do socket (requer middleware de sessão)
+        const userId = socket.request.session.userId;
 
-        const parts = fullMsg.split(': ');
-        let sender = 'Desconhecido';
-        let messageContent = fullMsg;
-
-        if (parts.length > 1) {
-            sender = parts[0];
-            messageContent = parts.slice(1).join(': ');
+        if (!userId) {
+            socket.emit('chat error', 'Você precisa estar logado para enviar mensagens.');
+            return;
         }
 
+        // NOVO: Implementação do Rate Limit
+        const now = Date.now();
+        if (!userMessageTimestamps[userId]) {
+            userMessageTimestamps[userId] = [];
+        }
+
+        // Remove timestamps antigos (fora da janela de tempo)
+        userMessageTimestamps[userId] = userMessageTimestamps[userId].filter(timestamp => now - timestamp < TIME_WINDOW_MS);
+
+        if (userMessageTimestamps[userId].length >= MESSAGE_LIMIT) {
+            socket.emit('chat error', `Você está enviando mensagens muito rápido! Limite de ${MESSAGE_LIMIT} mensagens por minuto.`);
+            return;
+        }
+
+        userMessageTimestamps[userId].push(now); // Adiciona o timestamp da mensagem atual
+
         try {
+            // Busca o usuário para verificar se é admin
+            const user = await collection.findById(userId);
+            let senderName = user ? user.name : 'Desconhecido';
+            let isAdmin = user ? user.isAdmin : false;
+
             const newChatMessage = new ChatMessage({
-                sender: sender,
-                message: messageContent
+                sender: senderName,
+                message: messageContent,
+                isAdmin: isAdmin, // Salva o status de admin no banco
+                isSystem: false // Não é uma mensagem de sistema enviada por usuário
             });
             await newChatMessage.save();
             console.log('Mensagem salva no banco de dados:', newChatMessage);
 
-            io.emit('chat message', fullMsg);
+            // NOVO: Emite um objeto estruturado para o cliente
+            io.emit('chat message', {
+                sender: senderName,
+                message: messageContent,
+                isAdmin: isAdmin,
+                isSystem: false
+            });
 
         } catch (error) {
             console.error("Erro ao salvar mensagem no banco de dados:", error);

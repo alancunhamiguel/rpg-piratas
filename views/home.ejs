@@ -158,6 +158,21 @@
             background-color: #3182ce;
         }
 
+        /* NOVO: Estilos para mensagens de chat */
+        .chat-message-admin {
+            color: #f6e05e; /* Amarelo para admin */
+            font-weight: bold;
+        }
+        .chat-message-system {
+            color: #63b3ed; /* Azul claro para sistema */
+            font-style: italic;
+            font-weight: bold;
+        }
+        .chat-message-error {
+            color: #e53e3e; /* Vermelho para erros */
+            font-weight: bold;
+        }
+
         /* --- Estilos de Habilidades (Novos) --- */
         .skills-grid {
             display: grid;
@@ -306,9 +321,10 @@
                 <img src="https://placehold.co/200x200/3182ce/ffffff?text=<%= character.type %>" alt="Seu <%= character.type %>" class="rounded-full border-4 border-yellow-500 mb-4 shadow-lg">
                 <p class="text-2xl font-semibold text-green-400">Nível: <span class="text-white" id="character-level"><%= character.level %></span></p>
                 <p class="text-lg text-gray-300">Classe: <span class="text-white"><%= character.class %></span></p>
-                <!-- NOVO: Exibição de Gold e Cash -->
                 <p class="text-lg text-yellow-300">Ouro: <span class="text-white" id="character-gold"><%= character.gold %></span></p>
                 <p class="text-lg text-blue-300">Dinheiro: <span class="text-white" id="character-cash"><%= character.cash %></span></p>
+                <p class="text-lg text-purple-300">VIP: <span class="text-white" id="character-vip"><%= character.vip ? 'Ativado' : 'Desativado' %></span></p>
+                <p class="text-lg text-orange-300">Fruta Ativa: <span class="text-white" id="character-active-fruit"><%= character.activeFruit ? character.activeFruit : 'Nenhuma' %></span></p>
             </div>
 
             <p class="text-lg mb-8">Sua aventura pelos sete mares começa agora! Prepare-se para desafios, tesouros e glória!</p>
@@ -326,7 +342,6 @@
             </div>
         </div>
 
-        <!-- Seção de Batalha -->
         <div id="battle-section" class="container w-full p-8 text-center <%= battleState ? '' : 'hidden' %>">
             <h2 class="text-3xl font-bold mb-4 text-red-400">Batalha!</h2>
 
@@ -349,11 +364,8 @@
             </div>
 
             <div class="mb-6">
-                <!-- Botões de Habilidade Ativa (serão preenchidos via JS) -->
                 <div id="active-battle-skills" class="flex justify-center gap-4 mb-4">
-                    <!-- Skills ativas virão aqui -->
-                </div>
-                <!-- Botão Fugir da Batalha -->
+                    </div>
                 <button id="flee-battle-btn" class="btn-pirate bg-yellow-600 hover:bg-yellow-700 w-full mb-4 hidden">Fugir da Batalha</button>
                 <div id="battle-log" class="bg-gray-700 p-4 rounded-lg text-left h-40 overflow-y-auto">
                     </div>
@@ -361,12 +373,9 @@
 
             <div class="hidden" id="battle-result">
                 <h3 class="text-2xl font-bold mb-4" id="result-message"></h3>
-                <!-- O botão de voltar para casa será acionado automaticamente após um delay -->
-                <!-- <button id="return-home-from-battle-btn" class="btn-pirate w-full mb-2">Voltar para Casa</button> -->
-            </div>
+                </div>
         </div>
 
-        <!-- Seção de Inventário -->
         <div id="inventory-section" class="container w-full p-8 text-center <%= inventoryState ? '' : 'hidden' %>">
             <h2 class="text-3xl font-bold mb-6 text-yellow-400">Seu Inventário</h2>
             
@@ -382,7 +391,6 @@
             </div>
         </div>
 
-        <!-- NOVA SEÇÃO: Habilidades -->
         <div id="skills-section" class="container w-full p-8 text-center <%= skillsState ? '' : 'hidden' %>">
             <h2 class="text-3xl font-bold mb-6 text-yellow-400">Suas Habilidades</h2>
 
@@ -398,20 +406,17 @@
 
             <h3 class="text-xl font-semibold mb-3 text-green-300">Habilidades Aprendidas</h3>
             <div id="learned-skills-grid" class="skills-grid mb-6">
-                <!-- Habilidades aprendidas virão aqui -->
-            </div>
+                </div>
 
             <h3 class="text-xl font-semibold mb-3 text-gray-300">Habilidades Disponíveis (para sua classe)</h3>
             <div id="available-skills-grid" class="skills-grid">
-                <!-- Habilidades disponíveis para aprender virão aqui -->
-            </div>
+                </div>
 
             <div class="mt-8">
                 <button id="return-home-from-skills-btn" class="btn-pirate w-full">Voltar para Casa</button>
             </div>
         </div>
 
-        <!-- Seção de Chat -->
         <div id="chat-section" class="w-full max-w-2xl">
             <h2 class="text-2xl font-bold mb-4 text-blue-300">Chat Global</h2>
             <ul id="messages" class="h-48 overflow-y-auto bg-gray-700 p-4 rounded-lg mb-4">
@@ -454,9 +459,12 @@
             const battleResultEl = document.getElementById('battle-result');
             const resultMessageEl = document.getElementById('result-message');
             const characterLevelEl = document.getElementById('character-level');
-            // NOVO: Referências para Gold e Cash
+            // Referências para Gold e Cash
             const characterGoldEl = document.getElementById('character-gold');
             const characterCashEl = document.getElementById('character-cash');
+            // NOVO: Referências para VIP e Fruta Ativa
+            const characterVipEl = document.getElementById('character-vip');
+            const characterActiveFruitEl = document.getElementById('character-active-fruit');
             
             const inventoryGridEl = document.getElementById('inventory-grid');
             const discardAreaEl = document.getElementById('discard-area');
@@ -477,14 +485,33 @@
             chatFormEl.addEventListener('submit', (e) => {
                 e.preventDefault();
                 if (chatInputEl.value) {
-                    socket.emit('chat message', `${currentUserName}: ${chatInputEl.value}`);
+                    socket.emit('chat message', chatInputEl.value); // Envia apenas o conteúdo da mensagem
                     chatInputEl.value = '';
                 }
             });
 
-            socket.on('chat message', (msg) => {
+            // NOVO: Recebe um objeto com informações da mensagem
+            socket.on('chat message', (msgData) => {
                 const item = document.createElement('li');
-                item.textContent = msg;
+                let messageText = `${msgData.sender}: ${msgData.message}`;
+                
+                if (msgData.isAdmin) {
+                    item.classList.add('chat-message-admin');
+                } else if (msgData.isSystem) {
+                    item.classList.add('chat-message-system');
+                    messageText = `SISTEMA: ${msgData.message}`; // Formata para mensagens do sistema
+                }
+                
+                item.textContent = messageText;
+                chatMessagesEl.appendChild(item);
+                chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
+            });
+
+            // NOVO: Lida com erros do chat (ex: rate limit)
+            socket.on('chat error', (errorMessage) => {
+                const item = document.createElement('li');
+                item.classList.add('chat-message-error');
+                item.textContent = `ERRO: ${errorMessage}`;
                 chatMessagesEl.appendChild(item);
                 chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
             });
@@ -515,8 +542,8 @@
                     enemyHpEl.textContent = battleState.enemyHP;
                     enemyHpBarEl.style.width = `${Math.max(0, (battleState.enemyHP / 100) * 100)}%`; 
 
-                    playerHpEl.textContent = battleState.playerHP;
-                    playerHpBarEl.style.width = `${Math.max(0, (battleState.playerHP / characterData.maxHp) * 100)}%`;
+                    playerHpEl.textContent = characterData.hp; // Usa o HP atualizado do characterData
+                    playerHpBarEl.style.width = `${Math.max(0, (characterData.hp / characterData.maxHp) * 100)}%`;
 
                     battleLogEl.innerHTML = '';
                     battleState.battleLog.forEach(log => {
@@ -569,9 +596,11 @@
                 else {
                     console.log("Showing Home Section.");
                     homeSection.classList.remove('hidden');
-                    // Atualiza Gold e Cash na home
+                    // Atualiza Gold, Cash, VIP e Fruta Ativa na home
                     characterGoldEl.textContent = characterData.gold;
                     characterCashEl.textContent = characterData.cash;
+                    characterVipEl.textContent = characterData.vip ? 'Ativado' : 'Desativado';
+                    characterActiveFruitEl.textContent = characterData.activeFruit ? characterData.activeFruit : 'Nenhuma';
                 }
             }
 

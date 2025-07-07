@@ -26,17 +26,10 @@ const LoginSchema = new mongoose.Schema({
         type: String,
         required: true
     },
-    // REMOVIDOS 'level' e 'inventory' daqui.
-    // Estes campos agora pertencerão aos personagens individuais.
-    // level: { // Campo 'level'
-    //     type: Number,
-    //     default: 0 // Define o valor padrão como 0
-    // },
-    // inventory: { // Adiciona o campo 'inventory' ao esquema
-    //     type: Array, // O inventário será um array de strings (nomes de itens)
-    //     default: []  // Define o valor padrão como um array vazio
-    // }
-
+    isAdmin: { // Campo para identificar se é administrador (mantido)
+        type: Boolean,
+        default: false
+    },
     // NOVO CAMPO: Array para armazenar IDs de personagens associados a este usuário
     characters: [{
         type: mongoose.Schema.Types.ObjectId, // Tipo que armazena o ID de outro documento
