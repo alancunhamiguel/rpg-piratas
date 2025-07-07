@@ -251,12 +251,33 @@ app.post('/create-character', isAuthenticated, async (req, res) => {
             return res.status(409).json({ success: false, message: "Você já tem um personagem com este nome. Escolha outro." });
         }
 
+        // NOVO: Inicialização completa de todos os campos numéricos e de array
         const newCharacter = new Character({
             name: name,
             owner: req.session.userId,
             type: type,
             gender: gender,
             class: characterClass,
+            gold: 0,
+            cash: 0,
+            vip: false,
+            activeFruit: null,
+            hp: 100, // HP inicial
+            maxHp: 100, // HP máximo inicial
+            experience: 0,
+            level: 1,
+            skillPoints: 0,
+            stats: {
+                strength: 0,
+                defense: 0,
+                agility: 0,
+                intelligence: 0
+            },
+            inventory: [],
+            learnedSkills: [], // Inicializa como array vazio
+            activeSkills: [], // Inicializa como array vazio
+            activeBuffs: [], // Inicializa como array vazio
+            skillCooldowns: [] // Inicializa como array vazio
         });
 
         // Adiciona "Atacar" e "Defender" como habilidades aprendidas padrão para novos personagens
@@ -393,7 +414,8 @@ const applySkillEffect = (skill, character, battleState, battleLog) => {
         case 'damage':
             // Base damage + character attack stat * skill value multiplier (example)
             // Ensure enemyHP is modified on the battleState object
-            const damageDealt = Math.max(1, skill.effect.value + (character.stats.attack * 0.5));
+            // NOVO: Garante que character.stats.attack é um número
+            const damageDealt = Math.max(1, skill.effect.value + (character.stats.attack || 0 * 0.5));
             battleState.enemyHP -= damageDealt;
             message = `${character.name} usou ${skill.name} e causou ${damageDealt.toFixed(0)} de dano ao ${battleState.enemyName}.`; // Use battleState.enemyName
             break;
@@ -504,12 +526,14 @@ app.post("/battle/attack", isAuthenticatedAndCharacterSelected, async (req, res)
 
         // --- Player's Turn: Basic Attack ---
         // Calculate player's effective attack considering buffs
-        let effectivePlayerAttack = activeCharacter.stats.attack;
+        // NOVO: Garante que character.stats.attack é um número
+        let effectivePlayerAttack = activeCharacter.stats.attack || 0;
         activeCharacter.activeBuffs.forEach(buff => {
             if (buff.stat === 'attack') {
-                effectivePlayerAttack += activeCharacter.stats.attack * buff.value;
+                effectivePlayerAttack += (activeCharacter.stats.attack || 0) * buff.value;
             }
         });
+        // NOVO: Garante que effectivePlayerAttack é um número
         const playerDamage = Math.max(1, effectivePlayerAttack - (battle.enemyLevel * 2));
 
         battle.enemyHP -= playerDamage;
@@ -571,13 +595,15 @@ app.post("/battle/attack", isAuthenticatedAndCharacterSelected, async (req, res)
 
         // --- Enemy's Turn ---
         // Calculate enemy's effective damage considering character's defense buffs
-        let effectiveCharacterDefense = activeCharacter.stats.defense;
+        // NOVO: Garante que character.stats.defense é um número
+        let effectiveCharacterDefense = activeCharacter.stats.defense || 0;
         activeCharacter.activeBuffs.forEach(buff => {
             if (buff.stat === 'defense') {
-                effectiveCharacterDefense += activeCharacter.stats.defense * buff.value;
+                effectiveCharacterDefense += (activeCharacter.stats.defense || 0) * buff.value;
             }
         });
         // Adjusted enemy damage calculation to be slightly higher, less affected by defense for basic attack
+        // NOVO: Garante que effectiveCharacterDefense é um número
         const enemyDamage = Math.max(1, (battle.enemyLevel * 8) - (effectiveCharacterDefense / 4));
 
         activeCharacter.hp -= enemyDamage;
@@ -707,13 +733,15 @@ app.post("/battle/use-skill", isAuthenticatedAndCharacterSelected, async (req, r
         manageTurnEffects(activeCharacter, battle.battleLog);
 
         // --- Enemy's Turn ---
-        let effectiveCharacterDefense = activeCharacter.stats.defense;
+        // NOVO: Garante que character.stats.defense é um número
+        let effectiveCharacterDefense = activeCharacter.stats.defense || 0;
         activeCharacter.activeBuffs.forEach(buff => {
             if (buff.stat === 'defense') {
-                effectiveCharacterDefense += activeCharacter.stats.defense * buff.value;
+                effectiveCharacterDefense += (activeCharacter.stats.defense || 0) * buff.value;
             }
         });
         // Adjusted enemy damage calculation
+        // NOVO: Garante que effectiveCharacterDefense é um número
         const enemyDamage = Math.max(1, (battle.enemyLevel * 8) - (effectiveCharacterDefense / 4));
 
         activeCharacter.hp -= enemyDamage;
