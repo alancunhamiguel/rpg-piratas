@@ -9,7 +9,7 @@ const Skill = require('./models/Skill'); // Import the Skill model
 const session = require('express-session');
 const MongoStore = require('connect-mongo');
 const mongoose = require('mongoose');
-const sharedsession = require('express-socket.io-session'); // NOVO: Importar express-socket.io-session
+const sharedsession = require('express-socket.io-session'); // Importar express-socket.io-session
 
 const ChatMessage = require('./models/ChatMessage'); // Import ChatMessage model
 
@@ -45,7 +45,6 @@ app.use(express.urlencoded({ extended: false }));
 app.use(express.static("public")); // Ensure your 'public' folder exists with CSS/JS files
 
 // Configure express-session
-// NOVO: Criar o middleware de sessão separadamente
 const sessionMiddleware = session({
     secret: process.env.SESSION_SECRET || 'sd@sds#fgewrwe3223321Da', // Use an environment variable for this!
     resave: false,
@@ -61,10 +60,10 @@ const sessionMiddleware = session({
     }
 });
 
-// NOVO: Usar o middleware de sessão para Express
+// Usar o middleware de sessão para Express
 app.use(sessionMiddleware);
 
-// NOVO: Compartilhar o middleware de sessão com Socket.IO
+// Compartilhar o middleware de sessão com Socket.IO
 io.use(sharedsession(sessionMiddleware, {
     autoSave: true // Salva a sessão automaticamente após modificações no socket
 }));
@@ -127,7 +126,7 @@ app.post("/signup", async (req, res) => {
         password: req.body.password,
     };
 
-    // NOVO: Lista de nomes de usuário proibidos para evitar novos admins
+    // Lista de nomes de usuário proibidos para evitar novos admins
     const forbiddenUsernames = ['admin', 'adm', 'administrator', 'root', 'sistema', 'moderador'];
     if (forbiddenUsernames.includes(data.name.toLowerCase())) {
         return res.status(400).json({ success: false, message: "Este nome de usuário é restrito. Por favor, escolha outro." });
@@ -1038,12 +1037,12 @@ app.post("/status/distribute-points", isAuthenticatedAndCharacterSelected, async
 // Socket.IO Logic (Chat)
 // ----------------------------------------------------------------------
 
-// NOVO: Objeto para controlar o rate limit por usuário
+// Objeto para controlar o rate limit por usuário
 const userMessageTimestamps = {}; // { userId: [timestamp1, timestamp2, ...], ... }
 const MESSAGE_LIMIT = 5; // Máximo de 5 mensagens
 const TIME_WINDOW_MS = 60 * 1000; // Em 1 minuto (60 segundos)
 
-// NOVO: Limpar chat a cada 30 minutos
+// Limpar chat a cada 30 minutos
 const CHAT_CLEAR_INTERVAL_MS = 30 * 60 * 1000; // 30 minutos
 
 setInterval(async () => {
@@ -1060,8 +1059,9 @@ setInterval(async () => {
 
 io.on('connection', async (socket) => {
     console.log('Um usuário conectado ao chat:', socket.id);
-    console.log('DEBUG: Socket.request na conexão:', socket.request);
-    console.log('DEBUG: Socket.request.session na conexão (início da conexão):', socket.request.session);
+    // console.log('DEBUG: Socket.request na conexão:', socket.request); // Removido para limpar logs
+    // console.log('DEBUG: Socket.handshake na conexão:', socket.handshake); // Adicionado para depuração
+    // console.log('DEBUG: Socket.handshake.session na conexão (início da conexão):', socket.handshake.session); // Adicionado para depuração
 
     // Carregar histórico de mensagens ao conectar
     try {
@@ -1085,16 +1085,16 @@ io.on('connection', async (socket) => {
 
     // Escuta por mensagens de chat de um cliente
     socket.on('chat message', async (messageContent) => {
-        console.log('DEBUG: Mensagem recebida no chat. Verificando sessão...');
-        console.log('DEBUG: Socket.request.session no chat message:', socket.request.session);
+        // console.log('DEBUG: Mensagem recebida no chat. Verificando sessão...'); // Removido para limpar logs
+        // console.log('DEBUG: Socket.handshake.session no chat message:', socket.handshake.session); // Adicionado para depuração
 
         let userId = null;
-        // Linha 1090 (aproximadamente, dependendo de outros códigos)
-        if (socket.request && socket.request.session && socket.request.session.userId) {
-            userId = socket.request.session.userId;
-            console.log('DEBUG: userId encontrado:', userId);
+        // Acessa o userId da sessão do handshake do socket
+        if (socket.handshake && socket.handshake.session && socket.handshake.session.userId) {
+            userId = socket.handshake.session.userId;
+            // console.log('DEBUG: userId encontrado:', userId); // Removido para limpar logs
         } else {
-            console.log('DEBUG: userId NÃO encontrado na sessão do socket.request. session:', socket.request.session, 'userId:', (socket.request && socket.request.session) ? socket.request.session.userId : 'N/A');
+            console.log('DEBUG: userId NÃO encontrado na sessão do socket.handshake.session. Session:', socket.handshake.session, 'userId:', (socket.handshake && socket.handshake.session) ? socket.handshake.session.userId : 'N/A');
         }
 
         if (!userId) {
@@ -1102,7 +1102,7 @@ io.on('connection', async (socket) => {
             return;
         }
 
-        // NOVO: Implementação do Rate Limit
+        // Implementação do Rate Limit
         const now = Date.now();
         if (!userMessageTimestamps[userId]) {
             userMessageTimestamps[userId] = [];
@@ -1133,7 +1133,7 @@ io.on('connection', async (socket) => {
             await newChatMessage.save();
             console.log('Mensagem salva no banco de dados:', newChatMessage);
 
-            // NOVO: Emite um objeto estruturado para o cliente
+            // Emite um objeto estruturado para o cliente
             io.emit('chat message', {
                 sender: senderName,
                 message: messageContent,
