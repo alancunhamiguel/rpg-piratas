@@ -106,9 +106,13 @@ const characterSchema = new mongoose.Schema({
         default: 0,
         min: 0
     },
-    vip: { // NOVO: Campo para status VIP
+    vip: { // Campo para status VIP
         type: Boolean,
         default: false
+    },
+    activeFruit: { // NOVO: Campo para a fruta ativa do personagem
+        type: String,
+        default: null // Ou uma string vazia, dependendo de como você quer representar "nenhuma fruta"
     }
 });
 
