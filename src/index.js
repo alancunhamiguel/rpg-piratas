@@ -974,11 +974,12 @@ app.get("/status", isAuthenticatedAndCharacterSelected, async (req, res) => {
         if (!activeCharacter) {
             return res.redirect('/select-character');
         }
-        req.session.statusOpen = true; // Set status state to true
-        req.session.battle = null; // Clear other states
+        // NÃO redirecionar para /home, renderizar status.ejs diretamente
+        req.session.statusOpen = true; // Define o estado da sessão
+        req.session.battle = null; // Limpa outros estados
         req.session.inventoryOpen = null;
         req.session.skillsOpen = null;
-        res.render("status", { character: activeCharacter });
+        res.render("status", { character: activeCharacter }); // Renderiza status.ejs
     } catch (error) {
         console.error("Erro ao carregar página de status:", error);
         res.redirect('/home');
@@ -988,7 +989,7 @@ app.get("/status", isAuthenticatedAndCharacterSelected, async (req, res) => {
 // Rota para esconder a página de status e retornar para home
 app.get("/status/hide", isAuthenticatedAndCharacterSelected, (req, res) => {
     console.log("Rota /status/hide acessada.");
-    req.session.statusOpen = null; // Clear status state
+    req.session.statusOpen = null; // Limpa o estado da sessão
     res.redirect("/home");
 });
 
