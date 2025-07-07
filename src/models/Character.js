@@ -17,7 +17,7 @@ const characterSchema = new mongoose.Schema({
     type: {
         type: String,
         required: true,
-        enum: ['Humano', 'Elfo', 'Anão', 'Orc', 'Marinheiro'] // ATUALIZADO: Adicionado 'Marinheiro'
+        enum: ['Humano', 'Elfo', 'Anão', 'Orc', 'Marinheiro', 'Pirata'] // ATUALIZADO: Adicionado 'Pirata'
     },
     gender: {
         type: String,
@@ -27,7 +27,7 @@ const characterSchema = new mongoose.Schema({
     class: {
         type: String,
         required: true,
-        enum: ['Guerreiro', 'Mago', 'Ladrão', 'Arqueiro', 'Espadachim'] // ATUALIZADO: Adicionado 'Espadachim'
+        enum: ['Guerreiro', 'Mago', 'Ladrão', 'Arqueiro', 'Espadachim', 'Atirador', 'Lutador'] // ATUALIZADO: Adicionado 'Atirador' e 'Lutador'
     },
     level: {
         type: Number,
