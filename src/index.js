@@ -9,7 +9,7 @@ const Skill = require('./models/Skill'); // Import the Skill model
 const session = require('express-session');
 const MongoStore = require('connect-mongo');
 const mongoose = require('mongoose');
-const sharedsession = require('express-socket.io-session'); // Importar express-socket.io-session
+const sharedsession = require('express-socket.io-session'); // Adicionado para garantir que esteja presente
 
 const ChatMessage = require('./models/ChatMessage'); // Import ChatMessage model
 
@@ -45,7 +45,7 @@ app.use(express.urlencoded({ extended: false }));
 app.use(express.static("public")); // Ensure your 'public' folder exists with CSS/JS files
 
 // Configure express-session
-const sessionMiddleware = session({
+const sessionMiddleware = session({ // Definido como uma variável para ser reutilizado
     secret: process.env.SESSION_SECRET || 'sd@sds#fgewrwe3223321Da', // Use an environment variable for this!
     resave: false,
     saveUninitialized: false,
@@ -60,14 +60,12 @@ const sessionMiddleware = session({
     }
 });
 
-// Usar o middleware de sessão para Express
-app.use(sessionMiddleware);
+app.use(sessionMiddleware); // Usar o middleware de sessão para Express
 
 // Compartilhar o middleware de sessão com Socket.IO
 io.use(sharedsession(sessionMiddleware, {
     autoSave: true // Salva a sessão automaticamente após modificações no socket
 }));
-
 
 // Use ejs as view engine
 app.set('view engine', 'ejs');
@@ -105,16 +103,16 @@ const isAuthenticatedAndCharacterSelected = async (req, res, next) => {
 // AUTHENTICATION AND REGISTRATION ROUTES
 // ----------------------------------------------------------------------
 
-// Rota para a página de login/registro (página inicial)
+// Route for the login/registration page (initial page)
 app.get("/", (req, res) => {
-    // Se o usuário já estiver logado, redireciona para a seleção de personagem
+    // If the user is already logged in, redirect to character selection
     if (req.session.userId) {
-        return res.redirect("/select-character"); // Novo fluxo
+        return res.redirect("/select-character"); // New flow
     }
     res.render("login");
 });
 
-// Rota para a página de registro
+// Route for the signup page
 app.get("/signup", (req, res) => {
     res.render("signup");
 });
@@ -126,7 +124,7 @@ app.post("/signup", async (req, res) => {
         password: req.body.password,
     };
 
-    // Lista de nomes de usuário proibidos para evitar novos admins
+    // NOVO: Lista de nomes de usuário proibidos para evitar novos admins
     const forbiddenUsernames = ['admin', 'adm', 'administrator', 'root', 'sistema', 'moderador'];
     if (forbiddenUsernames.includes(data.name.toLowerCase())) {
         return res.status(400).json({ success: false, message: "Este nome de usuário é restrito. Por favor, escolha outro." });
@@ -141,17 +139,24 @@ app.post("/signup", async (req, res) => {
             const hashedPassword = await bcrypt.hash(data.password, saltRounds);
             data.password = hashedPassword;
 
-            // Insere o novo usuário (sem personagens ainda)
+            // Insert the new user (without characters yet)
             const newUser = await collection.create(data);
-            console.log("Novo usuário registrado:", newUser.name);
+            console.log("New user registered:", newUser.name);
+
+            // Note: `data.characterClass` is not available here.
+            // These default skills should be added when the character is created,
+            // not when the user is created.
+            // For now, let's ensure they are added in the /create-character route.
+            // If you want them added on user creation, you'd need a default character
+            // created at the same time, or pass the class here.
 
             await newUser.save();
 
-            return res.status(200).json({ success: true, message: "Usuário registrado com sucesso!", redirectTo: '/create-character' });
+            return res.status(200).json({ success: true, message: "User registered successfully!", redirectTo: '/create-character' });
         }
     } catch (error) {
-        console.error("Erro ao registrar usuário:", error);
-        return res.status(500).json({ success: false, message: "Erro ao registrar usuário. Por favor, tente novamente." });
+        console.error("Error registering user:", error);
+        return res.status(500).json({ success: false, message: "Error registering user. Please try again." });
     }
 });
 
@@ -162,12 +167,12 @@ app.post("/login", async (req, res) => {
         const user = await collection.findOne({ name: username });
 
         if (!user) {
-            return res.json({ success: false, message: "Nome de usuário não encontrado." });
+            return res.json({ success: false, message: "Username not found." });
         }
 
         const isPasswordMatch = await bcrypt.compare(password, user.password);
         if (!isPasswordMatch) {
-            return res.json({ success: false, message: "Senha incorreta." });
+            return res.json({ success: false, message: "Incorrect password." });
         }
 
         // Autenticação bem-sucedida, armazena o ID do usuário na sessão
@@ -252,10 +257,6 @@ app.post('/create-character', isAuthenticated, async (req, res) => {
             type: type,
             gender: gender,
             class: characterClass,
-            gold: 0,
-            cash: 0,
-            vip: false,
-            activeFruit: null
         });
 
         // Adiciona "Atacar" e "Defender" como habilidades aprendidas padrão para novos personagens
@@ -371,7 +372,8 @@ app.get("/home", isAuthenticatedAndCharacterSelected, async (req, res) => {
             battleState: req.session.battle || null,
             inventoryState: req.session.inventoryOpen || null,
             skillsState: req.session.skillsOpen || null, // Skill section state
-            statusState: req.session.statusOpen || null // Passa o estado da seção de status
+            statusState: req.session.statusOpen || null, // Passa o estado da seção de status
+            user: user // ADICIONADO: Passa o objeto user para o template EJS
         });
     } catch (error) {
         console.error("Erro ao carregar home page:", error);
@@ -609,7 +611,7 @@ app.post("/battle/attack", isAuthenticatedAndCharacterSelected, async (req, res)
     }
 });
 
-// Rota para usar uma habilidade na batalha
+// NOVO: Rota para usar uma habilidade na batalha
 app.post("/battle/use-skill", isAuthenticatedAndCharacterSelected, async (req, res) => {
     const { skillId } = req.body;
     const battle = req.session.battle;
@@ -685,9 +687,6 @@ app.post("/battle/use-skill", isAuthenticatedAndCharacterSelected, async (req, r
                 battle.battleLog.push(`Você aprendeu uma nova habilidade: ${newSkill.name}!`);
             });
 
-            const goldGained = 10;
-            activeCharacter.gold += goldGained;
-            battle.battleLog.push(`Você encontrou ${goldGained} de Ouro!`);
 
             const droppedItem = "Moeda de Ouro";
             activeCharacter.inventory.push({ item: droppedItem, quantity: 1 });
@@ -743,8 +742,7 @@ app.post("/battle/use-skill", isAuthenticatedAndCharacterSelected, async (req, r
 
         res.json({ success: true, message: "Habilidade usada. Turno concluído.", battleState: battle, character: activeCharacter });
 
-    }
-    catch (error) {
+    } catch (error) {
         console.error("Erro ao usar habilidade:", error);
         res.status(500).json({ success: false, message: "Erro interno ao usar habilidade." });
     }
@@ -758,7 +756,7 @@ app.post("/battle/reset", isAuthenticatedAndCharacterSelected, (req, res) => {
     res.json({ message: "Batalha resetada." });
 });
 
-// Rota para fugir da batalha
+// NOVO: Rota para fugir da batalha
 app.post("/battle/flee", isAuthenticatedAndCharacterSelected, async (req, res) => {
     console.log("Rota /battle/flee acessada.");
     try {
@@ -1034,7 +1032,7 @@ app.post("/status/distribute-points", isAuthenticatedAndCharacterSelected, async
 
 
 // ----------------------------------------------------------------------
-// Socket.IO Logic (Chat)
+// Socket.IO Logic
 // ----------------------------------------------------------------------
 
 // Objeto para controlar o rate limit por usuário
@@ -1059,9 +1057,6 @@ setInterval(async () => {
 
 io.on('connection', async (socket) => {
     console.log('Um usuário conectado ao chat:', socket.id);
-    // console.log('DEBUG: Socket.request na conexão:', socket.request); // Removido para limpar logs
-    // console.log('DEBUG: Socket.handshake na conexão:', socket.handshake); // Adicionado para depuração
-    // console.log('DEBUG: Socket.handshake.session na conexão (início da conexão):', socket.handshake.session); // Adicionado para depuração
 
     // Carregar histórico de mensagens ao conectar
     try {
@@ -1070,6 +1065,7 @@ io.on('connection', async (socket) => {
                                         .limit(50);
 
         messages.forEach(chatMsg => {
+            // NOVO: Envia um objeto com mais informações
             socket.emit('chat message', {
                 sender: chatMsg.sender,
                 message: chatMsg.message,
@@ -1085,14 +1081,10 @@ io.on('connection', async (socket) => {
 
     // Escuta por mensagens de chat de um cliente
     socket.on('chat message', async (messageContent) => {
-        // console.log('DEBUG: Mensagem recebida no chat. Verificando sessão...'); // Removido para limpar logs
-        // console.log('DEBUG: Socket.handshake.session no chat message:', socket.handshake.session); // Adicionado para depuração
-
         let userId = null;
         // Acessa o userId da sessão do handshake do socket
         if (socket.handshake && socket.handshake.session && socket.handshake.session.userId) {
             userId = socket.handshake.session.userId;
-            // console.log('DEBUG: userId encontrado:', userId); // Removido para limpar logs
         } else {
             console.log('DEBUG: userId NÃO encontrado na sessão do socket.handshake.session. Session:', socket.handshake.session, 'userId:', (socket.handshake && socket.handshake.session) ? socket.handshake.session.userId : 'N/A');
         }
