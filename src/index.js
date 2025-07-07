@@ -247,6 +247,8 @@ app.post('/create-character', isAuthenticated, async (req, res) => {
             type: type,
             gender: gender,
             class: characterClass,
+            gold: 0, // NOVO: Inicializa gold
+            cash: 0  // NOVO: Inicializa cash
         });
 
         // Adiciona "Atacar" e "Defender" como habilidades aprendidas padrão para novos personagens
@@ -362,7 +364,7 @@ app.get("/home", isAuthenticatedAndCharacterSelected, async (req, res) => {
             battleState: req.session.battle || null,
             inventoryState: req.session.inventoryOpen || null,
             skillsState: req.session.skillsOpen || null, // Skill section state
-            statusState: req.session.statusOpen || null // NOVO: Passa o estado da seção de status
+            statusState: req.session.statusOpen || null // Passa o estado da seção de status
         });
     } catch (error) {
         console.error("Error loading home page:", error);
@@ -537,6 +539,10 @@ app.post("/battle/attack", isAuthenticatedAndCharacterSelected, async (req, res)
                 battle.battleLog.push(`Você aprendeu uma nova habilidade: ${newSkill.name}!`);
             });
 
+            const goldGained = 10; // NOVO: Ouro ganho na vitória
+            activeCharacter.gold += goldGained;
+            battle.battleLog.push(`Você encontrou ${goldGained} de Ouro!`);
+
             const droppedItem = "Moeda de Ouro";
             activeCharacter.inventory.push({ item: droppedItem, quantity: 1 });
             battle.battleLog.push(`Você encontrou uma ${droppedItem}!`);
@@ -672,6 +678,9 @@ app.post("/battle/use-skill", isAuthenticatedAndCharacterSelected, async (req, r
                 battle.battleLog.push(`Você aprendeu uma nova habilidade: ${newSkill.name}!`);
             });
 
+            const goldGained = 10; // NOVO: Ouro ganho na vitória
+            activeCharacter.gold += goldGained;
+            battle.battleLog.push(`Você encontrou ${goldGained} de Ouro!`);
 
             const droppedItem = "Moeda de Ouro";
             activeCharacter.inventory.push({ item: droppedItem, quantity: 1 });
@@ -727,7 +736,8 @@ app.post("/battle/use-skill", isAuthenticatedAndCharacterSelected, async (req, r
 
         res.json({ success: true, message: "Habilidade usada. Turno concluído.", battleState: battle, character: activeCharacter });
 
-    } catch (error) {
+    }
+    catch (error) {
         console.error("Erro ao usar habilidade:", error);
         res.status(500).json({ success: false, message: "Erro interno ao usar habilidade." });
     }
@@ -751,9 +761,6 @@ app.post("/battle/flee", isAuthenticatedAndCharacterSelected, async (req, res) =
             // activeCharacter.hp = Math.max(1, activeCharacter.hp - 10); // Exemplo de penalidade
             // await activeCharacter.save();
             req.session.battle = null; // Limpa o estado da batalha
-            req.session.statusOpen = null; // Clear status state when fleeing
-            req.session.inventoryOpen = null; // Clear inventory state when fleeing
-            req.session.skillsOpen = null; // Clear skills state when fleeing
             return res.json({ success: true, message: "Você fugiu da batalha!", redirectTo: "/home" });
         }
         res.status(404).json({ success: false, message: "Personagem não encontrado." });
@@ -974,7 +981,6 @@ app.get("/status", isAuthenticatedAndCharacterSelected, async (req, res) => {
         if (!activeCharacter) {
             return res.redirect('/select-character');
         }
-        // NÃO redirecionar para /home, renderizar status.ejs diretamente
         req.session.statusOpen = true; // Define o estado da sessão
         req.session.battle = null; // Limpa outros estados
         req.session.inventoryOpen = null;

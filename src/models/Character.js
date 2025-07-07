@@ -1,35 +1,33 @@
 const mongoose = require('mongoose');
 
-const CharacterSchema = new mongoose.Schema({
+const characterSchema = new mongoose.Schema({
     name: {
         type: String,
         required: true,
+        unique: true, // Garante que o nome do personagem seja único
         trim: true,
         minlength: 3,
-        maxlength: 50
+        maxlength: 30
     },
     owner: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'users', // Referência ao seu modelo de usuário (LoginSchema)
+        ref: 'users', // Referência ao modelo de usuário (LoginSchema)
         required: true
     },
-    type: { // Facção (Marinheiro ou Pirata)
+    type: {
         type: String,
         required: true,
-        enum: ['Marinheiro', 'Pirata'],
-        default: 'Marinheiro'
+        enum: ['Humano', 'Elfo', 'Anão', 'Orc'] // Exemplo de tipos de personagem
     },
-    gender: { // Gênero
+    gender: {
         type: String,
         required: true,
-        enum: ['Masculino', 'Feminino', 'Outro'],
-        default: 'Masculino'
+        enum: ['Masculino', 'Feminino', 'Não Binário']
     },
-    class: { // Classe de combate
+    class: {
         type: String,
         required: true,
-        enum: ['Atirador', 'Espadachim', 'Lutador'], // CORRIGIDO: "Espadachim"
-        default: 'Lutador'
+        enum: ['Guerreiro', 'Mago', 'Ladrão', 'Arqueiro'] // Exemplo de classes
     },
     level: {
         type: Number,
@@ -41,72 +39,83 @@ const CharacterSchema = new mongoose.Schema({
         default: 0,
         min: 0
     },
-    skillPoints: { // Pontos para distribuir em stats
+    skillPoints: {
         type: Number,
         default: 0,
         min: 0
     },
-    stats: {
-        attack: { type: Number, default: 10, min: 1 },
-        agility: { type: Number, default: 10, min: 1 },
-        defense: { type: Number, default: 10, min: 1 },
-        critical: { type: Number, default: 5, min: 0 } // Crítico pode ser %
-    },
-    hp: { // Health Points atual
+    hp: {
         type: Number,
         default: 100,
         min: 0
     },
-    maxHp: { // Health Points máximo
+    maxHp: {
         type: Number,
         default: 100,
         min: 1
     },
-    // NOVO CAMPO: Habilidades que o personagem aprendeu (IDs de Skill)
-    learnedSkills: [{
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Skill' // Referência ao modelo Skill
-    }],
-    // NOVO CAMPO: Habilidades ativas para a batalha (máximo de 2, IDs de Skill)
-    activeSkills: [{
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Skill' // Referência ao modelo Skill
-    }],
-    // NOVO CAMPO: Para controlar cooldowns de habilidades ativas (objeto com skill ID e turnos restantes)
-    skillCooldowns: [{
-        skill: { type: mongoose.Schema.Types.ObjectId, ref: 'Skill' },
-        turnsRemaining: { type: Number, default: 0 }
-    }],
-    // Itens equipados (referência a IDs de itens, a serem criados no modelo Item)
-    equippedItems: {
-        armor: { type: mongoose.Schema.Types.ObjectId, ref: 'Item', default: null },
-        boots: { type: mongoose.Schema.Types.ObjectId, ref: 'Item', default: null },
-        helmet: { type: mongoose.Schema.Types.ObjectId, ref: 'Item', default: null },
-        weapon: { type: mongoose.Schema.Types.ObjectId, ref: 'Item', default: null }
+    stats: {
+        strength: { type: Number, default: 10, min: 0 },
+        defense: { type: Number, default: 10, min: 0 },
+        agility: { type: Number, default: 10, min: 0 },
+        intelligence: { type: Number, default: 10, min: 0 }
     },
-    // Inventário do personagem (array de objetos com o ID do item e quantidade)
-    inventory: [{
-        item: { type: String }, // Temporário, idealmente seria mongoose.Schema.Types.ObjectId, ref: 'Item'
-        quantity: { type: Number, default: 1, min: 1 }
-    }],
-    activeBuffs: [{ // Para buffs temporários de skills
-        name: String,
-        stat: String, // Ex: 'attack', 'defense'
-        value: Number, // Ex: 0.10 para +10%
-        duration: Number, // Em turnos
-        turnsRemaining: Number // Turnos restantes do buff
-    }],
-    createdAt: {
-        type: Date,
-        default: Date.now
+    inventory: [
+        {
+            item: { type: String, required: true },
+            quantity: { type: Number, default: 1, min: 1 }
+        }
+    ],
+    learnedSkills: [
+        {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'Skill' // Referência ao modelo de Skill
+        }
+    ],
+    activeSkills: [
+        {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'Skill'
+        }
+    ],
+    activeBuffs: [
+        {
+            name: String,
+            stat: String,
+            value: Number,
+            duration: Number,
+            turnsRemaining: Number
+        }
+    ],
+    skillCooldowns: [
+        {
+            skill: {
+                type: mongoose.Schema.Types.ObjectId,
+                ref: 'Skill'
+            },
+            turnsRemaining: Number
+        }
+    ],
+    gold: { // NOVO: Campo para ouro
+        type: Number,
+        default: 0,
+        min: 0
+    },
+    cash: { // NOVO: Campo para dinheiro (cash)
+        type: Number,
+        default: 0,
+        min: 0
     }
-}, {
-    timestamps: true // Adiciona createdAt e updatedAt
 });
 
-// Adiciona um índice único composto para garantir que um usuário não tenha dois personagens com o mesmo nome
-CharacterSchema.index({ owner: 1, name: 1 }, { unique: true });
+// Middleware para garantir que o HP atual não exceda o HP máximo
+characterSchema.pre('save', function(next) {
+    if (this.hp > this.maxHp) {
+        this.hp = this.maxHp;
+    }
+    next();
+});
 
-const Character = mongoose.model('Character', CharacterSchema);
+const Character = mongoose.model('Character', characterSchema);
 
 module.exports = Character;
