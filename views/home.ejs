@@ -429,7 +429,8 @@
             const battleSection = document.getElementById('battle-section');
             const inventorySection = document.getElementById('inventory-section');
             const skillsSection = document.getElementById('skills-section');
-            const statusSection = document.getElementById('status-section'); // NOVO: Referência à seção de status
+            // A seção de status não existe diretamente no home.ejs, mas a variável statusState é usada para controlar a visibilidade da home
+            // const statusSection = document.getElementById('status-section'); 
 
             const showSkillsBtn = document.getElementById('show-skills-btn');
             const startBattleBtn = document.getElementById('start-battle-btn');
@@ -500,7 +501,8 @@
                 battleSection.classList.add('hidden');
                 inventorySection.classList.add('hidden');
                 skillsSection.classList.add('hidden');
-                if (statusSection) statusSection.classList.add('hidden'); // Esconde a seção de status se ela existir
+                // Não há uma seção 'status-section' aqui, mas a variável statusState é usada para controlar a visibilidade da home
+                // if (statusSection) statusSection.classList.add('hidden'); 
 
                 if (battleState && battleState.status === "active") {
                     console.log("Showing Battle Section.");
@@ -559,8 +561,8 @@
                     updateSkillsUI();
                 } else if (statusState) { // NOVO: Condição para exibir a seção de status
                     console.log("Showing Status Section.");
-                    // A seção de status será renderizada por status.ejs, então não precisamos manipulá-la aqui diretamente.
-                    // Apenas garantimos que as outras seções estejam escondidas.
+                    // Quando statusState é true, a home deve estar escondida.
+                    homeSection.classList.add('hidden'); // Garante que a home esteja escondida se status.ejs estiver ativo
                 }
                 else {
                     console.log("Showing Home Section.");

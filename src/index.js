@@ -311,6 +311,7 @@ app.post('/select-character', isAuthenticated, async (req, res) => {
         req.session.battle = null;
         req.session.inventoryOpen = null;
         req.session.skillsOpen = null; // Clears the skill section state
+        req.session.statusOpen = null; // Clear status state when selecting character
 
         return res.status(200).json({ success: true, message: "Character selected!", redirectTo: '/home' });
 
@@ -360,7 +361,8 @@ app.get("/home", isAuthenticatedAndCharacterSelected, async (req, res) => {
             allSkills: allSkills, // All skills for the frontend
             battleState: req.session.battle || null,
             inventoryState: req.session.inventoryOpen || null,
-            skillsState: req.session.skillsOpen || null // Skill section state
+            skillsState: req.session.skillsOpen || null, // Skill section state
+            statusState: req.session.statusOpen || null // NOVO: Passa o estado da seção de status
         });
     } catch (error) {
         console.error("Error loading home page:", error);
@@ -464,6 +466,7 @@ app.get("/battle/start", isAuthenticatedAndCharacterSelected, async (req, res) =
         };
         req.session.inventoryOpen = null;
         req.session.skillsOpen = null;
+        req.session.statusOpen = null; // Clear status state when starting battle
         res.redirect("/home");
     } catch (error) {
         console.error("Erro ao iniciar batalha:", error);
@@ -748,6 +751,9 @@ app.post("/battle/flee", isAuthenticatedAndCharacterSelected, async (req, res) =
             // activeCharacter.hp = Math.max(1, activeCharacter.hp - 10); // Exemplo de penalidade
             // await activeCharacter.save();
             req.session.battle = null; // Limpa o estado da batalha
+            req.session.statusOpen = null; // Clear status state when fleeing
+            req.session.inventoryOpen = null; // Clear inventory state when fleeing
+            req.session.skillsOpen = null; // Clear skills state when fleeing
             return res.json({ success: true, message: "Você fugiu da batalha!", redirectTo: "/home" });
         }
         res.status(404).json({ success: false, message: "Personagem não encontrado." });
@@ -764,6 +770,7 @@ app.get("/inventory/show", isAuthenticatedAndCharacterSelected, (req, res) => {
     req.session.inventoryOpen = true;
     req.session.battle = null;
     req.session.skillsOpen = null; // Ensures skills section is not open
+    req.session.statusOpen = null; // Clear status state when showing inventory
     res.redirect("/home");
 });
 
@@ -811,6 +818,7 @@ app.get("/skills/show", isAuthenticatedAndCharacterSelected, async (req, res) =>
     req.session.skillsOpen = true;
     req.session.battle = null; // Ensures battle is not active
     req.session.inventoryOpen = null; // Ensures inventory is not open
+    req.session.statusOpen = null; // Clear status state when showing skills
     res.redirect("/home");
 });
 
@@ -960,17 +968,30 @@ app.post("/skills/remove-active", isAuthenticatedAndCharacterSelected, async (re
 
 // Rota para exibir a página de status
 app.get("/status", isAuthenticatedAndCharacterSelected, async (req, res) => {
+    console.log("Rota /status acessada.");
     try {
         const activeCharacter = await Character.findById(req.session.activeCharacterId);
         if (!activeCharacter) {
             return res.redirect('/select-character');
         }
+        req.session.statusOpen = true; // Set status state to true
+        req.session.battle = null; // Clear other states
+        req.session.inventoryOpen = null;
+        req.session.skillsOpen = null;
         res.render("status", { character: activeCharacter });
     } catch (error) {
         console.error("Erro ao carregar página de status:", error);
         res.redirect('/home');
     }
 });
+
+// Rota para esconder a página de status e retornar para home
+app.get("/status/hide", isAuthenticatedAndCharacterSelected, (req, res) => {
+    console.log("Rota /status/hide acessada.");
+    req.session.statusOpen = null; // Clear status state
+    res.redirect("/home");
+});
+
 
 // Rota para distribuir pontos de habilidade
 app.post("/status/distribute-points", isAuthenticatedAndCharacterSelected, async (req, res) => {
