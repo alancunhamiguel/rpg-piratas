@@ -306,6 +306,9 @@
                 <img src="https://placehold.co/200x200/3182ce/ffffff?text=<%= character.type %>" alt="Seu <%= character.type %>" class="rounded-full border-4 border-yellow-500 mb-4 shadow-lg">
                 <p class="text-2xl font-semibold text-green-400">Nível: <span class="text-white" id="character-level"><%= character.level %></span></p>
                 <p class="text-lg text-gray-300">Classe: <span class="text-white"><%= character.class %></span></p>
+                <!-- NOVO: Exibição de Gold e Cash -->
+                <p class="text-lg text-yellow-300">Ouro: <span class="text-white" id="character-gold"><%= character.gold %></span></p>
+                <p class="text-lg text-blue-300">Dinheiro: <span class="text-white" id="character-cash"><%= character.cash %></span></p>
             </div>
 
             <p class="text-lg mb-8">Sua aventura pelos sete mares começa agora! Prepare-se para desafios, tesouros e glória!</p>
@@ -315,7 +318,7 @@
                 <button id="start-battle-btn" class="btn-pirate">Batalha Naval</button>
                 <button class="btn-pirate">Gerenciar Tripulação</button>
                 <button id="show-inventory-btn" class="btn-pirate">Inventário</button>
-                <button id="show-status-btn" class="btn-pirate">Status</button> <!-- NOVO BOTÃO DE STATUS -->
+                <button id="show-status-btn" class="btn-pirate">Status</button>
             </div>
 
             <div class="mt-8">
@@ -435,9 +438,8 @@
             const showSkillsBtn = document.getElementById('show-skills-btn');
             const startBattleBtn = document.getElementById('start-battle-btn');
             const showInventoryBtn = document.getElementById('show-inventory-btn');
-            const showStatusBtn = document.getElementById('show-status-btn'); // NOVO: Referência ao botão de status
+            const showStatusBtn = document.getElementById('show-status-btn'); 
 
-            const returnHomeFromBattleBtn = document.getElementById('return-home-from-battle-btn');
             const fleeBattleBtn = document.getElementById('flee-battle-btn');
             const returnHomeFromInventoryBtn = document.getElementById('return-home-from-inventory-btn');
             const returnHomeFromSkillsBtn = document.getElementById('return-home-from-skills-btn');
@@ -452,6 +454,9 @@
             const battleResultEl = document.getElementById('battle-result');
             const resultMessageEl = document.getElementById('result-message');
             const characterLevelEl = document.getElementById('character-level');
+            // NOVO: Referências para Gold e Cash
+            const characterGoldEl = document.getElementById('character-gold');
+            const characterCashEl = document.getElementById('character-cash');
             
             const inventoryGridEl = document.getElementById('inventory-grid');
             const discardAreaEl = document.getElementById('discard-area');
@@ -501,8 +506,6 @@
                 battleSection.classList.add('hidden');
                 inventorySection.classList.add('hidden');
                 skillsSection.classList.add('hidden');
-                // Não há uma seção 'status-section' aqui, mas a variável statusState é usada para controlar a visibilidade da home
-                // if (statusSection) statusSection.classList.add('hidden'); 
 
                 if (battleState && battleState.status === "active") {
                     console.log("Showing Battle Section.");
@@ -559,14 +562,16 @@
                     console.log("Showing Skills Section. Calling updateSkillsUI.");
                     skillsSection.classList.remove('hidden');
                     updateSkillsUI();
-                } else if (statusState) { // NOVO: Condição para exibir a seção de status
-                    console.log("Showing Status Section.");
-                    // Quando statusState é true, a home deve estar escondida.
-                    homeSection.classList.add('hidden'); // Garante que a home esteja escondida se status.ejs estiver ativo
+                } else if (statusState) { 
+                    console.log("Showing Status Section (via separate EJS). Hiding home.");
+                    homeSection.classList.add('hidden'); 
                 }
                 else {
                     console.log("Showing Home Section.");
                     homeSection.classList.remove('hidden');
+                    // Atualiza Gold e Cash na home
+                    characterGoldEl.textContent = characterData.gold;
+                    characterCashEl.textContent = characterData.cash;
                 }
             }
 
@@ -818,7 +823,7 @@
 
                     if (data.success) {
                         characterData = data.character;
-                        updateUI(data.battleState, initialInventoryState, initialSkillsState, initialStatusState); // Passa statusState
+                        updateUI(data.battleState, initialInventoryState, initialSkillsState, initialStatusState); 
                     } else {
                         alert(data.message);
                     }
@@ -833,7 +838,7 @@
             const initialBattleState = JSON.parse('<%- JSON.stringify(battleState || null) %>'); 
             const initialInventoryState = JSON.parse('<%- JSON.stringify(inventoryState || null) %>');
             const initialSkillsState = JSON.parse('<%- JSON.stringify(skillsState || null) %>');
-            const initialStatusState = JSON.parse('<%- JSON.stringify(statusState || null) %>'); // NOVO: Estado para a seção de status
+            const initialStatusState = JSON.parse('<%- JSON.stringify(statusState || null) %>'); 
             
             updateUI(initialBattleState, initialInventoryState, initialSkillsState, initialStatusState);
 
@@ -853,7 +858,6 @@
                 window.location.href = '/skills/show';
             });
 
-            // NOVO: Listener para o botão Status
             showStatusBtn.addEventListener('click', () => {
                 console.log("Botão Status clicado. Redirecionando para /status");
                 window.location.href = '/status';
