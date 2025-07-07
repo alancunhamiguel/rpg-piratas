@@ -375,7 +375,7 @@ app.get("/home", isAuthenticatedAndCharacterSelected, async (req, res) => {
             statusState: req.session.statusOpen || null // Passa o estado da seção de status
         });
     } catch (error) {
-        console.error("Error loading home page:", error);
+        console.error("Erro ao carregar home page:", error);
         res.redirect('/');
     }
 });
@@ -1060,6 +1060,8 @@ setInterval(async () => {
 
 io.on('connection', async (socket) => {
     console.log('Um usuário conectado ao chat:', socket.id);
+    console.log('DEBUG: Socket.request na conexão:', socket.request);
+    console.log('DEBUG: Socket.request.session na conexão (início da conexão):', socket.request.session);
 
     // Carregar histórico de mensagens ao conectar
     try {
@@ -1068,7 +1070,6 @@ io.on('connection', async (socket) => {
                                         .limit(50);
 
         messages.forEach(chatMsg => {
-            // NOVO: Envia um objeto com mais informações
             socket.emit('chat message', {
                 sender: chatMsg.sender,
                 message: chatMsg.message,
@@ -1084,9 +1085,17 @@ io.on('connection', async (socket) => {
 
     // Escuta por mensagens de chat de um cliente
     socket.on('chat message', async (messageContent) => {
-        // NOVO: Acessa o userId da sessão do socket (requer middleware de sessão)
-        // Certifique-se de que socket.request.session existe antes de tentar acessar userId
-        const userId = socket.request.session ? socket.request.session.userId : null;
+        console.log('DEBUG: Mensagem recebida no chat. Verificando sessão...');
+        console.log('DEBUG: Socket.request.session no chat message:', socket.request.session);
+
+        let userId = null;
+        // Linha 1090 (aproximadamente, dependendo de outros códigos)
+        if (socket.request && socket.request.session && socket.request.session.userId) {
+            userId = socket.request.session.userId;
+            console.log('DEBUG: userId encontrado:', userId);
+        } else {
+            console.log('DEBUG: userId NÃO encontrado na sessão do socket.request. session:', socket.request.session, 'userId:', (socket.request && socket.request.session) ? socket.request.session.userId : 'N/A');
+        }
 
         if (!userId) {
             socket.emit('chat error', 'Você precisa estar logado para enviar mensagens.');
