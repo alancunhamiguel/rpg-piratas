@@ -17,7 +17,7 @@ const characterSchema = new mongoose.Schema({
     type: {
         type: String,
         required: true,
-        enum: ['Humano', 'Elfo', 'Anão', 'Orc'] // Exemplo de tipos de personagem
+        enum: ['Humano', 'Elfo', 'Anão', 'Orc', 'Marinheiro'] // ATUALIZADO: Adicionado 'Marinheiro'
     },
     gender: {
         type: String,
@@ -27,7 +27,7 @@ const characterSchema = new mongoose.Schema({
     class: {
         type: String,
         required: true,
-        enum: ['Guerreiro', 'Mago', 'Ladrão', 'Arqueiro'] // Exemplo de classes
+        enum: ['Guerreiro', 'Mago', 'Ladrão', 'Arqueiro', 'Espadachim'] // ATUALIZADO: Adicionado 'Espadachim'
     },
     level: {
         type: Number,
@@ -96,12 +96,12 @@ const characterSchema = new mongoose.Schema({
             turnsRemaining: Number
         }
     ],
-    gold: { // NOVO: Campo para ouro
+    gold: {
         type: Number,
         default: 0,
         min: 0
     },
-    cash: { // NOVO: Campo para dinheiro (cash)
+    cash: {
         type: Number,
         default: 0,
         min: 0
