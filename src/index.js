@@ -9,6 +9,7 @@ const Skill = require('./models/Skill'); // Import the Skill model
 const session = require('express-session');
 const MongoStore = require('connect-mongo');
 const mongoose = require('mongoose');
+const sharedsession = require('express-socket.io-session'); // NOVO: Importar express-socket.io-session
 
 const ChatMessage = require('./models/ChatMessage'); // Import ChatMessage model
 
@@ -44,7 +45,8 @@ app.use(express.urlencoded({ extended: false }));
 app.use(express.static("public")); // Ensure your 'public' folder exists with CSS/JS files
 
 // Configure express-session
-app.use(session({
+// NOVO: Criar o middleware de sessão separadamente
+const sessionMiddleware = session({
     secret: process.env.SESSION_SECRET || 'sd@sds#fgewrwe3223321Da', // Use an environment variable for this!
     resave: false,
     saveUninitialized: false,
@@ -57,7 +59,16 @@ app.use(session({
     cookie: {
         maxAge: 1000 * 60 * 60 * 24 * 14 // 14 days
     }
+});
+
+// NOVO: Usar o middleware de sessão para Express
+app.use(sessionMiddleware);
+
+// NOVO: Compartilhar o middleware de sessão com Socket.IO
+io.use(sharedsession(sessionMiddleware, {
+    autoSave: true // Salva a sessão automaticamente após modificações no socket
 }));
+
 
 // Use ejs as view engine
 app.set('view engine', 'ejs');
@@ -244,8 +255,8 @@ app.post('/create-character', isAuthenticated, async (req, res) => {
             class: characterClass,
             gold: 0,
             cash: 0,
-            vip: false, // NOVO: Inicializa vip como false
-            activeFruit: null // NOVO: Inicializa activeFruit como null
+            vip: false,
+            activeFruit: null
         });
 
         // Adiciona "Atacar" e "Defender" como habilidades aprendidas padrão para novos personagens
@@ -972,30 +983,17 @@ app.post("/skills/remove-active", isAuthenticatedAndCharacterSelected, async (re
 
 // Rota para exibir a página de status
 app.get("/status", isAuthenticatedAndCharacterSelected, async (req, res) => {
-    console.log("Rota /status acessada.");
     try {
         const activeCharacter = await Character.findById(req.session.activeCharacterId);
         if (!activeCharacter) {
             return res.redirect('/select-character');
         }
-        req.session.statusOpen = true; // Define o estado da sessão
-        req.session.battle = null; // Limpa outros estados
-        req.session.inventoryOpen = null;
-        req.session.skillsOpen = null;
-        res.render("status", { character: activeCharacter }); // Renderiza status.ejs
+        res.render("status", { character: activeCharacter });
     } catch (error) {
         console.error("Erro ao carregar página de status:", error);
         res.redirect('/home');
     }
 });
-
-// Rota para esconder a página de status e retornar para home
-app.get("/status/hide", isAuthenticatedAndCharacterSelected, (req, res) => {
-    console.log("Rota /status/hide acessada.");
-    req.session.statusOpen = null; // Limpa o estado da sessão
-    res.redirect("/home");
-});
-
 
 // Rota para distribuir pontos de habilidade
 app.post("/status/distribute-points", isAuthenticatedAndCharacterSelected, async (req, res) => {
@@ -1087,7 +1085,8 @@ io.on('connection', async (socket) => {
     // Escuta por mensagens de chat de um cliente
     socket.on('chat message', async (messageContent) => {
         // NOVO: Acessa o userId da sessão do socket (requer middleware de sessão)
-        const userId = socket.request.session.userId;
+        // Certifique-se de que socket.request.session existe antes de tentar acessar userId
+        const userId = socket.request.session ? socket.request.session.userId : null;
 
         if (!userId) {
             socket.emit('chat error', 'Você precisa estar logado para enviar mensagens.');
