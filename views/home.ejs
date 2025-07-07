@@ -321,10 +321,15 @@
                 <img src="https://placehold.co/200x200/3182ce/ffffff?text=<%= character.type %>" alt="Seu <%= character.type %>" class="rounded-full border-4 border-yellow-500 mb-4 shadow-lg">
                 <p class="text-2xl font-semibold text-green-400">Nível: <span class="text-white" id="character-level"><%= character.level %></span></p>
                 <p class="text-lg text-gray-300">Classe: <span class="text-white"><%= character.class %></span></p>
+                
                 <p class="text-lg text-yellow-300">Ouro: <span class="text-white" id="character-gold"><%= character.gold %></span></p>
                 <p class="text-lg text-blue-300">Dinheiro: <span class="text-white" id="character-cash"><%= character.cash %></span></p>
+                
                 <p class="text-lg text-purple-300">VIP: <span class="text-white" id="character-vip"><%= character.vip ? 'Ativado' : 'Desativado' %></span></p>
+                
                 <p class="text-lg text-orange-300">Fruta Ativa: <span class="text-white" id="character-active-fruit"><%= character.activeFruit ? character.activeFruit : 'Nenhuma' %></span></p>
+                
+                <p class="text-lg text-red-400">Status Admin: <span class="text-white" id="user-is-admin"><%= user.isAdmin ? 'Sim' : 'Não' %></span></p> <% /* NOVO: Exibe o status isAdmin do usuário logado */ %>
             </div>
 
             <p class="text-lg mb-8">Sua aventura pelos sete mares começa agora! Prepare-se para desafios, tesouros e glória!</p>
@@ -342,6 +347,7 @@
             </div>
         </div>
 
+        
         <div id="battle-section" class="container w-full p-8 text-center <%= battleState ? '' : 'hidden' %>">
             <h2 class="text-3xl font-bold mb-4 text-red-400">Batalha!</h2>
 
@@ -364,8 +370,11 @@
             </div>
 
             <div class="mb-6">
+                
                 <div id="active-battle-skills" class="flex justify-center gap-4 mb-4">
-                    </div>
+                    
+                </div>
+                
                 <button id="flee-battle-btn" class="btn-pirate bg-yellow-600 hover:bg-yellow-700 w-full mb-4 hidden">Fugir da Batalha</button>
                 <div id="battle-log" class="bg-gray-700 p-4 rounded-lg text-left h-40 overflow-y-auto">
                     </div>
@@ -373,9 +382,11 @@
 
             <div class="hidden" id="battle-result">
                 <h3 class="text-2xl font-bold mb-4" id="result-message"></h3>
-                </div>
+                
+            </div>
         </div>
 
+        
         <div id="inventory-section" class="container w-full p-8 text-center <%= inventoryState ? '' : 'hidden' %>">
             <h2 class="text-3xl font-bold mb-6 text-yellow-400">Seu Inventário</h2>
             
@@ -391,6 +402,7 @@
             </div>
         </div>
 
+        
         <div id="skills-section" class="container w-full p-8 text-center <%= skillsState ? '' : 'hidden' %>">
             <h2 class="text-3xl font-bold mb-6 text-yellow-400">Suas Habilidades</h2>
 
@@ -406,17 +418,20 @@
 
             <h3 class="text-xl font-semibold mb-3 text-green-300">Habilidades Aprendidas</h3>
             <div id="learned-skills-grid" class="skills-grid mb-6">
-                </div>
+                
+            </div>
 
             <h3 class="text-xl font-semibold mb-3 text-gray-300">Habilidades Disponíveis (para sua classe)</h3>
             <div id="available-skills-grid" class="skills-grid">
-                </div>
+                
+            </div>
 
             <div class="mt-8">
                 <button id="return-home-from-skills-btn" class="btn-pirate w-full">Voltar para Casa</button>
             </div>
         </div>
 
+        
         <div id="chat-section" class="w-full max-w-2xl">
             <h2 class="text-2xl font-bold mb-4 text-blue-300">Chat Global</h2>
             <ul id="messages" class="h-48 overflow-y-auto bg-gray-700 p-4 rounded-lg mb-4">
@@ -465,6 +480,8 @@
             // NOVO: Referências para VIP e Fruta Ativa
             const characterVipEl = document.getElementById('character-vip');
             const characterActiveFruitEl = document.getElementById('character-active-fruit');
+            // NOVO: Referência para o status Admin do usuário
+            const userIsAdminEl = document.getElementById('user-is-admin');
             
             const inventoryGridEl = document.getElementById('inventory-grid');
             const discardAreaEl = document.getElementById('discard-area');
@@ -521,6 +538,9 @@
             let characterData = JSON.parse('<%- JSON.stringify(character) %>');
             let allSkillsData = JSON.parse('<%- JSON.stringify(allSkills) %>');
             let currentUserInventory = characterData.inventory || [];
+            // NOVO: Acessa o objeto user para obter o status isAdmin
+            let userData = JSON.parse('<%- JSON.stringify(user) %>');
+
 
             const INVENTORY_LIMIT = 20;
             const ACTIVE_SKILLS_LIMIT = 2;
@@ -601,6 +621,8 @@
                     characterCashEl.textContent = characterData.cash;
                     characterVipEl.textContent = characterData.vip ? 'Ativado' : 'Desativado';
                     characterActiveFruitEl.textContent = characterData.activeFruit ? characterData.activeFruit : 'Nenhuma';
+                    // NOVO: Atualiza o status Admin do usuário
+                    userIsAdminEl.textContent = userData.isAdmin ? 'Sim' : 'Não';
                 }
             }
 
