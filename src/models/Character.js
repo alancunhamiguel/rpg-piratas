@@ -105,6 +105,10 @@ const characterSchema = new mongoose.Schema({
         type: Number,
         default: 0,
         min: 0
+    },
+    vip: { // NOVO: Campo para status VIP
+        type: Boolean,
+        default: false
     }
 });
 
