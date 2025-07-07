@@ -329,7 +329,6 @@
                 
                 <p class="text-lg text-orange-300">Fruta Ativa: <span class="text-white" id="character-active-fruit"><%= character.activeFruit ? character.activeFruit : 'Nenhuma' %></span></p>
                 
-                <% /* REMOVIDO: <p class="text-lg text-red-400">Status Admin: <span class="text-white" id="user-is-admin"><%= user.isAdmin ? 'Sim' : 'Não' %></span></p> */ %>
             </div>
 
             <p class="text-lg mb-8">Sua aventura pelos sete mares começa agora! Prepare-se para desafios, tesouros e glória!</p>
@@ -620,7 +619,6 @@
                     characterCashEl.textContent = characterData.cash;
                     characterVipEl.textContent = characterData.vip ? 'Ativado' : 'Desativado';
                     characterActiveFruitEl.textContent = characterData.activeFruit ? characterData.activeFruit : 'Nenhuma';
-                    // REMOVIDO: userIsAdminEl.textContent = userData.isAdmin ? 'Sim' : 'Não';
                 }
             }
 
