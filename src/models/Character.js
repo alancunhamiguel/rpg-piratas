@@ -28,7 +28,7 @@ const CharacterSchema = new mongoose.Schema({
     class: { // Classe de combate
         type: String,
         required: true,
-        enum: ['Atirador', 'Espadim', 'Lutador'],
+        enum: ['Atirador', 'Espadachim', 'Lutador'],
         default: 'Lutador'
     },
     level: {

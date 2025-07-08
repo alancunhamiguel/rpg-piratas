@@ -214,8 +214,8 @@
             const socket = io();
 
             const TILE_SIZE = 48; // Tamanho de cada tile em pixels (48x48)
-            const FRAME_WIDTH = 48; // Largura de um único quadro do sprite
-            const FRAME_HEIGHT = 48; // Altura de um único quadro do sprite
+            const SPRITE_FRAME_WIDTH = 32; // Largura REAL de um único quadro no arquivo player.png
+            const SPRITE_FRAME_HEIGHT = 32; // Altura REAL de um único quadro no arquivo player.png
 
             const MAP_WIDTH = 20; // Número de tiles na largura do mapa
             const MAP_HEIGHT = 15; // Número de tiles na altura do mapa
@@ -402,13 +402,13 @@
                     const baseRow = DIRECTION_ROW_MAP[playerToDraw.direction];
                     const spriteRow = baseRow + ACTION_INFO[playerToDraw.action].rowOffset;
                     
-                    const srcX = playerToDraw.animationFrame * FRAME_WIDTH;
-                    const srcY = spriteRow * FRAME_HEIGHT;
+                    const srcX = playerToDraw.animationFrame * SPRITE_FRAME_WIDTH; 
+                    const srcY = spriteRow * SPRITE_FRAME_HEIGHT; 
 
                     ctx.drawImage(
                         playerImage,
-                        srcX, srcY, FRAME_WIDTH, FRAME_HEIGHT, 
-                        playerToDraw.x * TILE_SIZE, playerToDraw.y * TILE_SIZE, TILE_SIZE, TILE_SIZE 
+                        srcX, srcY, SPRITE_FRAME_WIDTH, SPRITE_FRAME_HEIGHT, // Cortar com o tamanho real do frame
+                        playerToDraw.x * TILE_SIZE, playerToDraw.y * TILE_SIZE, TILE_SIZE, TILE_SIZE // Desenhar no tamanho do tile
                     );
                 } else {
                     ctx.fillStyle = playerToDraw.color;
