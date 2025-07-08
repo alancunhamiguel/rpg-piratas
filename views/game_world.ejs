@@ -213,7 +213,10 @@
             const ctx = canvas.getContext('2d');
             const socket = io();
 
-            const TILE_SIZE = 32; // Tamanho de cada tile em pixels
+            const TILE_SIZE = 48; // Tamanho de cada tile em pixels (48x48)
+            const FRAME_WIDTH = 48; // Largura de um único quadro do sprite
+            const FRAME_HEIGHT = 48; // Altura de um único quadro do sprite
+
             const MAP_WIDTH = 20; // Número de tiles na largura do mapa
             const MAP_HEIGHT = 15; // Número de tiles na altura do mapa
 
@@ -221,6 +224,10 @@
             canvas.width = MAP_WIDTH * TILE_SIZE;
             canvas.height = MAP_HEIGHT * TILE_SIZE;
 
+            // Carrega a imagem do sprite do jogador
+            const playerImage = new Image();
+            playerImage.src = '/player.png'; // Caminho para o sprite sheet do player
+            
             // Cores para tiles simples (temporário)
             const TILE_COLORS = {
                 0: '#48bb78', // Grama
@@ -248,15 +255,48 @@
                 [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
             ];
 
+            // Mapeamento de direção lógica para a linha do sprite sheet
+            // Baseado na imagem player.png:
+            // Linha 0: Baixo (Down)
+            // Linha 1: Esquerda (Left)
+            // Linha 2: Direita (Right)
+            // Linha 3: Cima (Up)
+            const DIRECTION_ROW_MAP = {
+                0: 0, // Baixo
+                1: 3, // Cima
+                2: 1, // Esquerda
+                3: 2  // Direita
+            };
+
+            // Mapeamento de ação para o offset da linha no sprite sheet
+            // E o número de frames para cada ação
+            // As linhas 0-3 são para idle/move (dependendo da direção)
+            // As linhas 4-7 são para attack (dependendo da direção)
+            // As linhas 8-11 são para damaged (dependendo da direção)
+            // A linha 12 é para death (frame único)
+            const ACTION_INFO = {
+                'idle': { rowOffset: 0, frames: 3 },
+                'move': { rowOffset: 0, frames: 3 },
+                'attack': { rowOffset: 4, frames: 3 },
+                'damaged': { rowOffset: 8, frames: 3 }, // Adicionado damaged
+                'death': { rowOffset: 12, frames: 1 } // Death é a linha 12, com 1 frame
+            };
+
             let player = {
-                x: 5, // Posição X em tiles
-                y: 5, // Posição Y em tiles
+                x: JSON.parse('<%= character.x %>'), // Posição X inicial do DB
+                y: JSON.parse('<%= character.y %>'), // Posição Y inicial do DB
                 name: "<%= character.name %>", // Nome do personagem do EJS
-                color: 'blue', // Cor do personagem
+                color: 'blue', // Cor de fallback se sprite não carregar
                 hp: JSON.parse('<%= character.hp %>'),
                 maxHp: JSON.parse('<%= character.maxHp %>'),
                 gold: JSON.parse('<%= character.gold %>'),
-                inventory: JSON.parse('<%- JSON.stringify(character.inventory) %>') || []
+                inventory: JSON.parse('<%- JSON.stringify(character.inventory) %>') || [],
+                direction: JSON.parse('<%= character.direction %>'), // 0: Baixo, 1: Cima, 2: Esquerda, 3: Direita
+                action: 'idle', // 'idle', 'move', 'attack', 'damaged', 'death'
+                animationFrame: 0,
+                animationTimer: 0,
+                animationSpeed: 10, // Quadros por segundo para a animação
+                isMoving: false // Flag para controlar se o personagem está se movendo
             };
 
             let otherPlayers = {}; // Para armazenar outros jogadores conectados
@@ -322,13 +362,31 @@
                 }
             }
 
-            // Função para desenhar o jogador
+            // Função para desenhar o jogador (agora com sprites)
             function drawPlayer(playerToDraw) {
-                ctx.fillStyle = playerToDraw.color;
-                ctx.fillRect(playerToDraw.x * TILE_SIZE + 2, playerToDraw.y * TILE_SIZE + 2, TILE_SIZE - 4, TILE_SIZE - 4);
-                ctx.strokeStyle = 'white';
-                ctx.lineWidth = 2;
-                ctx.strokeRect(playerToDraw.x * TILE_SIZE + 2, playerToDraw.y * TILE_SIZE + 2, TILE_SIZE - 4, TILE_SIZE - 4);
+                if (playerImage.complete && playerImage.naturalWidth !== 0) {
+                    // Mapeia a direção lógica para a linha base do sprite sheet
+                    const baseRow = DIRECTION_ROW_MAP[playerToDraw.direction];
+                    // Adiciona o offset da ação para obter a linha correta
+                    const spriteRow = baseRow + ACTION_INFO[playerToDraw.action].rowOffset;
+                    
+                    // Calcula as coordenadas de origem no sprite sheet
+                    const srcX = playerToDraw.animationFrame * FRAME_WIDTH;
+                    const srcY = spriteRow * FRAME_HEIGHT;
+
+                    ctx.drawImage(
+                        playerImage,
+                        srcX, srcY, FRAME_WIDTH, FRAME_HEIGHT, // Retângulo de origem no sprite sheet (x, y, largura, altura)
+                        playerToDraw.x * TILE_SIZE, playerToDraw.y * TILE_SIZE, TILE_SIZE, TILE_SIZE // Retângulo de destino no canvas
+                    );
+                } else {
+                    // Fallback para cor sólida se a imagem não carregar
+                    ctx.fillStyle = playerToDraw.color;
+                    ctx.fillRect(playerToDraw.x * TILE_SIZE + 2, playerToDraw.y * TILE_SIZE + 2, TILE_SIZE - 4, TILE_SIZE - 4);
+                    ctx.strokeStyle = 'white';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(playerToDraw.x * TILE_SIZE + 2, playerToDraw.y * TILE_SIZE + 2, TILE_SIZE - 4, TILE_SIZE - 4);
+                }
 
                 // Desenhar nome do jogador
                 ctx.fillStyle = 'white';
@@ -351,28 +409,87 @@
                 }
             }
 
+            // --- Lógica de Animação e Loop do Jogo ---
+            let lastTime = 0;
+            function gameLoop(currentTime) {
+                if (!lastTime) lastTime = currentTime;
+                const deltaTime = currentTime - lastTime;
+                lastTime = currentTime;
+
+                // Atualiza o frame de animação com base na ação atual
+                player.animationTimer += deltaTime;
+                const framesInAction = ACTION_INFO[player.action].frames;
+
+                if (player.animationTimer >= (1000 / player.animationSpeed)) {
+                    player.animationFrame = (player.animationFrame + 1) % framesInAction;
+                    player.animationTimer = 0;
+
+                    // Lógica para ações de frame único ou que retornam ao idle
+                    if (player.action === 'death' && player.animationFrame === framesInAction - 1) {
+                        // Se for a última frame da animação de morte, pode parar a animação ou fazer algo mais
+                        // Por enquanto, apenas para a animação
+                        player.animationFrame = framesInAction - 1; // Fica na última frame
+                        player.animationSpeed = 0; // Para a animação
+                    } else if (player.action === 'attack' || player.action === 'damaged') {
+                        // Se for uma ação temporária (ataque, dano), volta para idle após o ciclo de animação
+                        if (player.animationFrame === framesInAction - 1) {
+                            player.action = player.isMoving ? 'move' : 'idle';
+                            player.animationFrame = 0;
+                        }
+                    }
+                }
+
+                draw(); // Redesenha tudo
+                requestAnimationFrame(gameLoop); // Chama o próximo quadro
+            }
+
+            // Inicia o loop do jogo quando a imagem do sprite é carregada
+            playerImage.onload = () => {
+                console.log("Player sprite sheet loaded.");
+                requestAnimationFrame(gameLoop); // Inicia o loop após o carregamento da imagem
+            };
+            // Se a imagem já estiver no cache, ou se houver um erro, ainda queremos iniciar o loop
+            if (playerImage.complete) {
+                requestAnimationFrame(gameLoop);
+            }
+
+
             // --- Lógica de Movimento ---
             document.addEventListener('keydown', (e) => {
                 let newX = player.x;
                 let newY = player.y;
+                let newDirection = player.direction; // Mantém a direção atual por padrão
+
+                let moved = false; // Flag para verificar se o movimento ocorreu
 
                 switch (e.key) {
                     case 'ArrowUp':
                     case 'w':
                         newY--;
+                        newDirection = 1; // Cima
+                        moved = true;
                         break;
                     case 'ArrowDown':
                     case 's':
                         newY++;
+                        newDirection = 0; // Baixo
+                        moved = true;
                         break;
                     case 'ArrowLeft':
-                    case 'l':
+                    case 'a':
                         newX--;
+                        newDirection = 2; // Esquerda
+                        moved = true;
                         break;
                     case 'ArrowRight':
                     case 'd':
                         newX++;
+                        newDirection = 3; // Direita
+                        moved = true;
                         break;
+                    default:
+                        // Não é uma tecla de movimento, não faz nada
+                        return; 
                 }
 
                 // Validação de limites do mapa
@@ -382,11 +499,24 @@
                     if (targetTileType !== 2 && targetTileType !== 3) { // 2=Água, 3=Pedra (exemplo de tile bloqueável)
                         player.x = newX;
                         player.y = newY;
-                        socket.emit('player_move', { x: player.x, y: player.y }); // Envia nova posição ao servidor
-                        draw(); // Redesenha imediatamente para feedback visual
+                        player.direction = newDirection; // Atualiza a direção do jogador
+                        player.action = 'move'; // Define a ação como mover
+                        player.isMoving = true; // Define que o personagem está se movendo
+                        socket.emit('player_move', { x: player.x, y: player.y, direction: player.direction, action: player.action, isMoving: player.isMoving }); // Envia nova posição, direção e status de movimento ao servidor
                     }
                 }
             });
+
+            document.addEventListener('keyup', (e) => {
+                // Para a animação quando a tecla de movimento é solta
+                if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'w', 'a', 's', 'd'].includes(e.key)) {
+                    player.isMoving = false;
+                    player.action = 'idle'; // Volta para a ação idle
+                    player.animationFrame = 0; // Reseta o frame de animação para parado
+                    socket.emit('player_stop_moving'); // Notifica o servidor que o jogador parou de se mover
+                }
+            });
+
 
             // --- Socket.IO para Multiplayer ---
             socket.on('connect', () => {
@@ -399,18 +529,26 @@
                     color: player.color,
                     hp: player.hp,
                     maxHp: player.maxHp,
-                    gold: player.gold
+                    gold: player.gold,
+                    direction: player.direction, // Envia a direção inicial
+                    action: player.action,
+                    isMoving: player.isMoving
                 });
             });
 
             socket.on('current_players', (players) => {
                 console.log('Jogadores atuais:', players);
-                otherPlayers = players;
+                otherPlayers = {}; // Limpa a lista para evitar duplicatas
+                for (const id in players) {
+                    if (id !== socket.id) { // Não adiciona o próprio jogador à lista de "outros"
+                        otherPlayers[id] = players[id];
+                    }
+                }
                 draw();
             });
 
             socket.on('player_moved', (playerData) => {
-                // Atualiza a posição de outro jogador
+                // Atualiza a posição, direção e status de movimento de outro jogador
                 otherPlayers[playerData.id] = {
                     x: playerData.x,
                     y: playerData.y,
@@ -418,7 +556,13 @@
                     color: playerData.color,
                     hp: playerData.hp,
                     maxHp: playerData.maxHp,
-                    gold: playerData.gold
+                    gold: playerData.gold,
+                    direction: playerData.direction, // Atualiza a direção
+                    action: playerData.action, // Atualiza a ação (idle/move)
+                    animationFrame: playerData.animationFrame || 0, // Adiciona frame de animação (se o servidor enviar)
+                    animationTimer: 0,
+                    animationSpeed: 10,
+                    isMoving: playerData.isMoving // Adiciona status de movimento
                 };
                 draw();
             });
@@ -465,8 +609,7 @@
                 window.location.href = '/home'; // Redireciona de volta para a home
             });
 
-            // Inicializa o desenho e a UI
-            draw();
+            // Inicializa a UI do jogador
             updatePlayerInfoUI();
         });
     </script>

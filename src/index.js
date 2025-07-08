@@ -279,7 +279,8 @@ app.post('/create-character', isAuthenticated, async (req, res) => {
             activeBuffs: [], // Inicializa como array vazio
             skillCooldowns: [], // Inicializa como array vazio
             x: 5, // Posição X inicial no mundo (tile)
-            y: 5  // Posição Y inicial no mundo (tile)
+            y: 5,  // Posição Y inicial no mundo (tile)
+            direction: 0 // Direção inicial (0: Baixo)
         });
 
         // Adiciona "Atacar" e "Defender" como habilidades aprendidas padrão para novos personagens
@@ -1089,7 +1090,7 @@ app.get("/game_world", isAuthenticatedAndCharacterSelected, async (req, res) => 
 // ----------------------------------------------------------------------
 
 // Armazenamento em memória para jogadores no mundo 2D
-const connectedPlayers = {}; // { socket.id: { id, name, x, y, color, hp, maxHp, gold, characterId } }
+const connectedPlayers = {}; // { socket.id: { id, name, x, y, color, hp, maxHp, gold, characterId, direction, action, isMoving } }
 
 // Objeto para controlar o rate limit por usuário
 const userMessageTimestamps = {}; // { userId: [timestamp1, timestamp2, ...], ... }
@@ -1215,10 +1216,10 @@ io.on('connection', async (socket) => {
                 return;
             }
 
-            // Atualiza a posição do personagem no banco de dados com a posição inicial enviada pelo cliente
-            // Isso garante que, se o servidor reiniciar, o personagem volte para a última posição conhecida
+            // Atualiza a posição e direção do personagem no banco de dados com a posição inicial enviada pelo cliente
             character.x = playerData.x;
             character.y = playerData.y;
+            character.direction = playerData.direction; // Salva a direção inicial
             await character.save();
 
             connectedPlayers[socket.id] = {
@@ -1230,9 +1231,12 @@ io.on('connection', async (socket) => {
                 color: playerData.color, // Cor pode ser definida pelo cliente ou servidor
                 hp: character.hp,
                 maxHp: character.maxHp,
-                gold: character.gold
+                gold: character.gold,
+                direction: character.direction, // Inclui a direção
+                action: playerData.action, // Inclui a ação (idle/move)
+                isMoving: playerData.isMoving // Inclui o status de movimento
             };
-            console.log(`Jogador ${connectedPlayers[socket.id].name} (${socket.id}) entrou no mundo em (${character.x}, ${character.y}).`);
+            console.log(`Jogador ${connectedPlayers[socket.id].name} (${socket.id}) entrou no mundo em (${character.x}, ${character.y}). Direção: ${character.direction}.`);
 
             // Envia a lista de jogadores atuais para o novo jogador
             socket.emit('current_players', connectedPlayers);
@@ -1259,10 +1263,13 @@ io.on('connection', async (socket) => {
                 
                 player.x = newPosition.x;
                 player.y = newPosition.y;
+                player.direction = newPosition.direction; // Atualiza a direção do jogador
+                player.action = newPosition.action; // Atualiza a ação do jogador
+                player.isMoving = newPosition.isMoving; // Atualiza o status de movimento
 
-                // Atualiza a posição no banco de dados em tempo real (ou periodicamente)
+                // Atualiza a posição e direção no banco de dados em tempo real (ou periodicamente)
                 try {
-                    await Character.findByIdAndUpdate(player.characterId, { x: player.x, y: player.y });
+                    await Character.findByIdAndUpdate(player.characterId, { x: player.x, y: player.y, direction: player.direction });
                 } catch (dbError) {
                     console.error("Erro ao salvar posição do personagem no DB:", dbError);
                 }
@@ -1276,9 +1283,39 @@ io.on('connection', async (socket) => {
                     color: player.color,
                     hp: player.hp,
                     maxHp: player.maxHp,
-                    gold: player.gold
+                    gold: player.gold,
+                    direction: player.direction, // Inclui a direção
+                    action: player.action, // Inclui a ação
+                    animationFrame: player.animationFrame, // Pode enviar o frame atual para sincronização
+                    isMoving: player.isMoving // Envia o status de movimento
                 });
             }
+        }
+    });
+
+    // NOVO: Evento para quando o jogador para de se mover
+    socket.on('player_stop_moving', async () => {
+        const player = connectedPlayers[socket.id];
+        if (player) {
+            player.isMoving = false;
+            player.action = 'idle'; // Volta para a ação idle
+            player.animationFrame = 0; // Reseta o frame de animação para parado
+
+            // Notifica todos os clientes que o jogador parou de se mover
+            io.emit('player_moved', {
+                id: player.id,
+                name: player.name,
+                x: player.x,
+                y: player.y,
+                color: player.color,
+                hp: player.hp,
+                maxHp: player.maxHp,
+                gold: player.gold,
+                direction: player.direction,
+                action: player.action,
+                animationFrame: player.animationFrame,
+                isMoving: player.isMoving
+            });
         }
     });
 
