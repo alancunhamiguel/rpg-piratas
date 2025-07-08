@@ -277,7 +277,9 @@ app.post('/create-character', isAuthenticated, async (req, res) => {
             learnedSkills: [], // Inicializa como array vazio
             activeSkills: [], // Inicializa como array vazio
             activeBuffs: [], // Inicializa como array vazio
-            skillCooldowns: [] // Inicializa como array vazio
+            skillCooldowns: [], // Inicializa como array vazio
+            x: 5, // Posição X inicial no mundo (tile)
+            y: 5  // Posição Y inicial no mundo (tile)
         });
 
         // Adiciona "Atacar" e "Defender" como habilidades aprendidas padrão para novos personagens
@@ -1058,10 +1060,36 @@ app.post("/status/distribute-points", isAuthenticatedAndCharacterSelected, async
     }
 });
 
+// ----------------------------------------------------------------------
+// NOVO: ROTAS DO MUNDO 2D (MAPA)
+// ----------------------------------------------------------------------
+
+// Rota para exibir o mundo 2D
+app.get("/game_world", isAuthenticatedAndCharacterSelected, async (req, res) => {
+    try {
+        const activeCharacter = await Character.findById(req.session.activeCharacterId);
+        if (!activeCharacter) {
+            return res.redirect('/select-character');
+        }
+        // Limpa estados de outras seções ao entrar no mundo do jogo
+        req.session.battle = null;
+        req.session.inventoryOpen = null;
+        req.session.skillsOpen = null;
+        req.session.statusOpen = null;
+
+        res.render("game_world", { character: activeCharacter });
+    } catch (error) {
+        console.error("Erro ao carregar o mundo do jogo:", error);
+        res.redirect('/home');
+    }
+});
 
 // ----------------------------------------------------------------------
 // Socket.IO Logic
 // ----------------------------------------------------------------------
+
+// Armazenamento em memória para jogadores no mundo 2D
+const connectedPlayers = {}; // { socket.id: { id, name, x, y, color, hp, maxHp, gold, characterId } }
 
 // Objeto para controlar o rate limit por usuário
 const userMessageTimestamps = {}; // { userId: [timestamp1, timestamp2, ...], ... }
@@ -1167,9 +1195,103 @@ io.on('connection', async (socket) => {
         }
     });
 
+    // NOVO: Lógica do Mundo 2D Multiplayer
+    socket.on('player_join', async (playerData) => {
+        const userId = socket.handshake.session.userId;
+        const activeCharacterId = socket.handshake.session.activeCharacterId;
+
+        if (!userId || !activeCharacterId) {
+            console.warn(`Tentativa de player_join sem userId ou activeCharacterId para socket ${socket.id}`);
+            socket.disconnect(true); // Desconecta se não houver sessão válida
+            return;
+        }
+
+        try {
+            // Busca o personagem para obter a posição mais recente do DB
+            const character = await Character.findById(activeCharacterId);
+            if (!character) {
+                console.warn(`Personagem ${activeCharacterId} não encontrado para userId ${userId}. Desconectando socket ${socket.id}`);
+                socket.disconnect(true);
+                return;
+            }
+
+            // Atualiza a posição do personagem no banco de dados com a posição inicial enviada pelo cliente
+            // Isso garante que, se o servidor reiniciar, o personagem volte para a última posição conhecida
+            character.x = playerData.x;
+            character.y = playerData.y;
+            await character.save();
+
+            connectedPlayers[socket.id] = {
+                id: socket.id,
+                characterId: activeCharacterId,
+                name: character.name,
+                x: character.x,
+                y: character.y,
+                color: playerData.color, // Cor pode ser definida pelo cliente ou servidor
+                hp: character.hp,
+                maxHp: character.maxHp,
+                gold: character.gold
+            };
+            console.log(`Jogador ${connectedPlayers[socket.id].name} (${socket.id}) entrou no mundo em (${character.x}, ${character.y}).`);
+
+            // Envia a lista de jogadores atuais para o novo jogador
+            socket.emit('current_players', connectedPlayers);
+
+            // Notifica todos os outros jogadores sobre o novo jogador
+            socket.broadcast.emit('player_moved', connectedPlayers[socket.id]);
+
+        } catch (error) {
+            console.error("Erro ao processar player_join:", error);
+            socket.disconnect(true);
+        }
+    });
+
+    socket.on('player_move', async (newPosition) => {
+        const player = connectedPlayers[socket.id];
+        if (player) {
+            // Validação básica de movimento (ex: dentro dos limites do mapa)
+            // Para um jogo real, você faria validações mais complexas aqui (colisão, etc.)
+            const MAP_WIDTH = 20; // Deve corresponder ao frontend
+            const MAP_HEIGHT = 15; // Deve corresponder ao frontend
+
+            if (newPosition.x >= 0 && newPosition.x < MAP_WIDTH &&
+                newPosition.y >= 0 && newPosition.y < MAP_HEIGHT) {
+                
+                player.x = newPosition.x;
+                player.y = newPosition.y;
+
+                // Atualiza a posição no banco de dados em tempo real (ou periodicamente)
+                try {
+                    await Character.findByIdAndUpdate(player.characterId, { x: player.x, y: player.y });
+                } catch (dbError) {
+                    console.error("Erro ao salvar posição do personagem no DB:", dbError);
+                }
+
+                // Notifica todos os clientes sobre o movimento do jogador
+                io.emit('player_moved', {
+                    id: player.id,
+                    name: player.name,
+                    x: player.x,
+                    y: player.y,
+                    color: player.color,
+                    hp: player.hp,
+                    maxHp: player.maxHp,
+                    gold: player.gold
+                });
+            }
+        }
+    });
+
     // Quando um cliente se desconecta
     socket.on('disconnect', () => {
-        console.log('Um usuário desconectado do chat:', socket.id);
+        if (connectedPlayers[socket.id]) {
+            console.log('Jogador desconectado do mundo:', connectedPlayers[socket.id].name, `(${socket.id})`);
+            delete connectedPlayers[socket.id];
+            // Notifica todos os outros jogadores sobre a desconexão
+            io.emit('player_disconnected', socket.id);
+        } else {
+            console.log('Um usuário desconectado do chat (não estava no mundo 2D):', socket.id);
+        }
     });
 });
 // --- End of Socket.IO Logic ---

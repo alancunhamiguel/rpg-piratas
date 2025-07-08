@@ -338,7 +338,7 @@
                 <button id="start-battle-btn" class="btn-pirate">Batalha Naval</button>
                 <button class="btn-pirate">Gerenciar Tripulação</button>
                 <button id="show-inventory-btn" class="btn-pirate">Inventário</button>
-                <button id="show-status-btn" class="btn-pirate">Status</button>
+                <button id="show-map-btn" class="btn-pirate">MAPA</button> <% /* NOVO: Botão MAPA */ %>
             </div>
 
             <div class="mt-8">
@@ -457,7 +457,7 @@
             const showSkillsBtn = document.getElementById('show-skills-btn');
             const startBattleBtn = document.getElementById('start-battle-btn');
             const showInventoryBtn = document.getElementById('show-inventory-btn');
-            const showStatusBtn = document.getElementById('show-status-btn'); 
+            const showMapBtn = document.getElementById('show-map-btn'); // NOVO: Referência ao botão MAPA
 
             const fleeBattleBtn = document.getElementById('flee-battle-btn');
             const returnHomeFromInventoryBtn = document.getElementById('return-home-from-inventory-btn');
@@ -905,9 +905,10 @@
                 window.location.href = '/skills/show';
             });
 
-            showStatusBtn.addEventListener('click', () => {
-                console.log("Botão Status clicado. Redirecionando para /status");
-                window.location.href = '/status';
+            // NOVO: Event Listener para o botão MAPA
+            showMapBtn.addEventListener('click', () => {
+                console.log("Botão MAPA clicado. Redirecionando para /game_world");
+                window.location.href = '/game_world';
             });
 
 
