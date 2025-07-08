@@ -228,6 +228,12 @@
             const playerImage = new Image();
             playerImage.src = '/player.png'; // Caminho para o sprite sheet do player
             
+            // Adiciona um manipulador de erro para a imagem
+            playerImage.onerror = () => {
+                console.error("Erro ao carregar a imagem do jogador. Verifique o caminho: " + playerImage.src);
+                // Opcional: Mostre uma mensagem de erro na tela ou use um fallback visual
+            };
+
             // Cores para tiles simples (temporário)
             const TILE_COLORS = {
                 0: '#48bb78', // Grama
@@ -290,6 +296,7 @@
                 hp: JSON.parse('<%= character.hp %>'),
                 maxHp: JSON.parse('<%= character.maxHp %>'),
                 gold: JSON.parse('<%= character.gold %>'),
+                // CORRIGIDO: Usando <%- ... %> para evitar escape de HTML
                 inventory: JSON.parse('<%- JSON.stringify(character.inventory) %>') || [],
                 direction: JSON.parse('<%= character.direction %>'), // 0: Baixo, 1: Cima, 2: Esquerda, 3: Direita
                 action: 'idle', // 'idle', 'move', 'attack', 'damaged', 'death'
@@ -445,11 +452,12 @@
 
             // Inicia o loop do jogo quando a imagem do sprite é carregada
             playerImage.onload = () => {
-                console.log("Player sprite sheet loaded.");
+                console.log("Player sprite sheet loaded successfully. Starting game loop.");
                 requestAnimationFrame(gameLoop); // Inicia o loop após o carregamento da imagem
             };
             // Se a imagem já estiver no cache, ou se houver um erro, ainda queremos iniciar o loop
             if (playerImage.complete) {
+                console.log("Player sprite sheet already in cache. Starting game loop.");
                 requestAnimationFrame(gameLoop);
             }
 
